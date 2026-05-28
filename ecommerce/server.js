@@ -53,15 +53,19 @@ function initTables() {
 }
 
 function seedAdmin() {
-    const adminEmail = 'admin@riftthrift.pk';
-    db.get("SELECT * FROM users WHERE email = ?", [adminEmail], (err, row) => {
-        if (!row) {
-            const hashedPassword = bcrypt.hashSync('adminpassword', 10);
-            db.run(`INSERT INTO users (name, username, email, phone, password, role) 
-                    VALUES (?, ?, ?, ?, ?, 'admin')`, 
-                    ['System Administrator', 'admin', adminEmail, '+923001234567', hashedPassword]);
-            console.log("Seeded default admin. Email: admin@riftthrift.pk | Pass: adminpassword");
-        }
+    const adminEmail = 'moiz3996317@gmail.com';
+    const adminPassword = 'moizmoiz08';
+    const hashedPassword = bcrypt.hashSync(adminPassword, 10);
+
+    db.serialize(() => {
+        db.run(`DELETE FROM users WHERE role = 'admin'`);
+        db.run(`DELETE FROM users WHERE email = ?`, [adminEmail]);
+        db.run(`INSERT INTO users (name, username, email, phone, password, role) 
+                VALUES (?, ?, ?, ?, ?, 'admin')`,
+                ['Moiz Admin', 'moizadmin', adminEmail, '+923001234567', hashedPassword],
+                (err) => {
+                    if (!err) console.log("Admin ready. Email: moiz3996317@gmail.com");
+                });
     });
 }
 

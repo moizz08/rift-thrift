@@ -194,6 +194,38 @@
                 <img src="https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg" alt="Rift Thrift Logo" class="h-8 object-contain no-click-effect">
             </div>
 
+            <!-- Already Logged In -->
+            <div id="alreadyLoggedInSection" class="hidden text-center py-4">
+                <div class="w-16 h-16 rounded-full bg-black flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-user text-white text-2xl"></i>
+                </div>
+                <p class="text-[10px] font-bold tracking-widest text-gray-400 uppercase mb-1">LOGGED IN AS</p>
+                <h2 id="alreadyLoggedName" class="font-bold text-xl tracking-widest mb-1"></h2>
+                <p id="alreadyLoggedEmail" class="text-xs text-gray-400 mb-6"></p>
+                <button onclick="toggleAuth()" class="w-full bg-black text-white py-4 font-bold text-xs tracking-widest hover:bg-gray-800 transition cursor-pointer shadow hover:shadow-lg mb-3">START SHOPPING</button>
+                <p class="text-xs font-bold text-center text-gray-400 tracking-widest cursor-pointer hover:text-black" onclick="logout(); toggleAuth();">LOGOUT</p>
+            </div>
+
+            <!-- Login Success -->
+            <div id="loginSuccessSection" class="hidden text-center py-4">
+                <div class="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-check text-white text-2xl"></i>
+                </div>
+                <h2 class="font-bold text-xl tracking-widest mb-2">LOGGED IN!</h2>
+                <p id="loginSuccessMsg" class="text-xs text-gray-500 tracking-widest mb-6">WELCOME BACK</p>
+                <button onclick="toggleAuth()" class="w-full bg-black text-white py-4 font-bold text-xs tracking-widest hover:bg-gray-800 transition cursor-pointer shadow hover:shadow-lg">START SHOPPING</button>
+            </div>
+
+            <!-- Signup Success -->
+            <div id="signupSuccessSection" class="hidden text-center py-4">
+                <div class="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-check text-white text-2xl"></i>
+                </div>
+                <h2 class="font-bold text-xl tracking-widest mb-2">ACCOUNT CREATED!</h2>
+                <p id="signupSuccessMsg" class="text-xs text-gray-500 tracking-widest mb-6">WELCOME TO RIFT THRIFT</p>
+                <button onclick="toggleAuth()" class="w-full bg-black text-white py-4 font-bold text-xs tracking-widest hover:bg-gray-800 transition cursor-pointer shadow hover:shadow-lg">START SHOPPING</button>
+            </div>
+
             <div id="loginSection">
                 <h2 class="font-bold text-center mb-6 tracking-widest text-lg">SIGN IN</h2>
                 <form id="loginForm" onsubmit="handleLoginSubmit(event)" class="space-y-6">

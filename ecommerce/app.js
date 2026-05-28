@@ -420,21 +420,32 @@ function applyFilterBtn() {
 function toggleAuth() { 
     const auth = document.getElementById('authModal');
     if (auth.classList.contains('hidden-section')) {
-        auth.classList.remove('hidden-section'); 
-        switchAuth('login');
+        auth.classList.remove('hidden-section');
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user) {
+            showAuthSection('alreadyLoggedIn');
+            document.getElementById('alreadyLoggedName').innerText = user.name.toUpperCase();
+            document.getElementById('alreadyLoggedEmail').innerText = user.email;
+        } else {
+            switchAuth('login');
+        }
         pushAppLayer('auth', () => auth.classList.add('hidden-section'));
     } else {
         goBack();
     }
 }
 
+function showAuthSection(section) {
+    const sections = ['loginSection', 'signupSection', 'alreadyLoggedInSection', 'loginSuccessSection', 'signupSuccessSection'];
+    sections.forEach(id => document.getElementById(id).classList.add('hidden'));
+    document.getElementById(section + 'Section').classList.remove('hidden');
+}
+
 function switchAuth(type) {
     if(type === 'signup') {
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('signupSection').classList.remove('hidden');
+        showAuthSection('signup');
     } else {
-        document.getElementById('signupSection').classList.add('hidden');
-        document.getElementById('loginSection').classList.remove('hidden');
+        showAuthSection('login');
     }
 }
 
@@ -453,9 +464,9 @@ async function handleLoginSubmit(event) {
         if (res.ok) {
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
-            alert('Logged in Successfully!');
-            toggleAuth();
             syncUserUI();
+            document.getElementById('loginSuccessMsg').innerText = 'WELCOME BACK, ' + data.user.name.split(' ')[0].toUpperCase() + '!';
+            showAuthSection('loginSuccess');
         } else {
             alert(data.error || 'Authentication Failed');
         }
@@ -480,8 +491,10 @@ async function handleSignupSubmit(event) {
         });
         const data = await res.json();
         if (res.ok) {
-            alert('Account Created Successfully! Please Sign In.');
-            switchAuth('login');
+            const signupName = document.getElementById('signupName').value;
+            document.getElementById('signupSuccessMsg').innerText = 'WELCOME, ' + signupName.split(' ')[0].toUpperCase() + '! YOUR ACCOUNT IS READY.';
+            showAuthSection('signupSuccess');
+            document.getElementById('signupForm').reset();
         } else {
             alert(data.error || 'Registration Failed');
         }
