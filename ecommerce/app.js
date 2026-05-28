@@ -417,6 +417,14 @@ function applyFilterBtn() {
     goBack(); 
 }
 
+function closeAuthModal() {
+    const auth = document.getElementById('authModal');
+    if (!auth.classList.contains('hidden-section')) {
+        auth.classList.add('hidden-section');
+        goBack();
+    }
+}
+
 function toggleAuth() {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
@@ -863,7 +871,8 @@ async function finishOrder(e) {
     e.preventDefault(); 
 
     const name = document.getElementById('chkName').value;
-    const email = document.getElementById('chkEmail').value;
+    const loggedUser = JSON.parse(localStorage.getItem('user'));
+    const email = loggedUser ? loggedUser.email : document.getElementById('chkEmail').value;
     const phone = document.getElementById('chkPhone').value;
     const address = document.getElementById('chkAddress').value;
 
@@ -1183,7 +1192,8 @@ async function loadMyOrders() {
     document.getElementById('myOrdersList').classList.add('hidden');
     try {
         const res = await fetch(`${API_URL}/my-orders`, { headers: { 'Authorization': `Bearer ${token}` } });
-        const orders = await res.json();
+        const allOrders = await res.json();
+        const orders = allOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled');
         document.getElementById('myOrdersLoading').classList.add('hidden');
         if (!orders.length) {
             document.getElementById('myOrdersEmpty').classList.remove('hidden');
@@ -1193,9 +1203,10 @@ async function loadMyOrders() {
         list.classList.remove('hidden');
         list.innerHTML = orders.map(o => {
             const items = JSON.parse(o.items || '[]');
-            const statusColor = o.status === 'Delivered' ? 'text-green-600 bg-green-50' : o.status === 'Shipped' ? 'text-blue-600 bg-blue-50' : 'text-yellow-600 bg-yellow-50';
-            const statusIcon = o.status === 'Delivered' ? 'fa-circle-check' : o.status === 'Shipped' ? 'fa-truck' : 'fa-clock';
+            const statusColor = o.status === 'Shipped' ? 'text-blue-600 bg-blue-50' : 'text-yellow-600 bg-yellow-50';
+            const statusIcon = o.status === 'Shipped' ? 'fa-truck' : 'fa-clock';
             const date = new Date(o.created_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
+            const canCancel = o.status === 'Pending';
             return `
             <div class="bg-white border rounded-lg overflow-hidden shadow-sm">
                 <div class="flex items-center justify-between px-5 py-4 border-b">
@@ -1210,19 +1221,45 @@ async function loadMyOrders() {
                 <div class="px-5 py-3 space-y-2">
                     ${items.map(item => `
                     <div class="flex justify-between items-center text-xs">
-                        <span class="text-gray-700 font-medium">${item.name || item.title || 'Item'} <span class="text-gray-400">× ${item.qty || item.quantity || 1}</span></span>
-                        <span class="font-bold">Rs. ${(item.price * (item.qty || item.quantity || 1)).toLocaleString()}</span>
+                        <span class="text-gray-700 font-medium">${item.product_name || item.name || 'Item'} <span class="text-gray-400">× ${item.quantity || item.qty || 1}</span></span>
+                        <span class="font-bold">Rs. ${((item.price || 0) * (item.quantity || item.qty || 1)).toLocaleString()}</span>
                     </div>`).join('')}
                 </div>
                 <div class="flex justify-between items-center px-5 py-3 bg-gray-50 border-t">
                     <span class="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Total</span>
-                    <span class="font-bold text-sm">Rs. ${o.total.toLocaleString()}</span>
+                    <span class="font-bold text-sm">Rs. ${(o.total || 0).toLocaleString()}</span>
                 </div>
+                ${canCancel ? `
+                <div class="px-5 py-3 border-t">
+                    <button onclick="cancelOrder(${o.id})" class="w-full border border-red-500 text-red-500 hover:bg-red-500 hover:text-white py-2.5 text-[11px] font-bold tracking-widest uppercase transition rounded">
+                        <i class="fa-solid fa-xmark mr-1"></i> Cancel Order
+                    </button>
+                </div>` : ''}
             </div>`;
         }).join('');
     } catch (e) {
         document.getElementById('myOrdersLoading').classList.add('hidden');
         document.getElementById('myOrdersEmpty').classList.remove('hidden');
+    }
+}
+
+async function cancelOrder(orderId) {
+    if (!confirm('Are you sure you want to cancel this order?')) return;
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`${API_URL}/my-orders/${orderId}/cancel`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            showToast('Order cancelled', 'fa-xmark');
+            loadMyOrders();
+        } else {
+            const d = await res.json();
+            alert(d.error || 'Could not cancel order.');
+        }
+    } catch (e) {
+        alert('Connection error.');
     }
 }
 

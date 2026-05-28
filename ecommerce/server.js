@@ -166,6 +166,19 @@ app.get('/api/my-orders', authenticateToken, (req, res) => {
     });
 });
 
+// User Route: Cancel own pending order
+app.put('/api/my-orders/:id/cancel', authenticateToken, (req, res) => {
+    const orderId = req.params.id;
+    db.get("SELECT * FROM orders WHERE id = ? AND email = ?", [orderId, req.user.email], (err, order) => {
+        if (!order) return res.status(404).json({ error: "Order not found." });
+        if (order.status !== 'Pending') return res.status(400).json({ error: "Only pending orders can be cancelled." });
+        db.run("UPDATE orders SET status = 'Cancelled' WHERE id = ?", [orderId], (err) => {
+            if (err) return res.status(500).json({ error: "Failed to cancel order." });
+            res.json({ message: "Order cancelled." });
+        });
+    });
+});
+
 // Admin Route: Get all orders
 app.get('/api/admin/orders', authenticateToken, requireAdmin, (req, res) => {
     db.all("SELECT * FROM orders ORDER BY id DESC", [], (err, rows) => {
