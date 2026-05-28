@@ -417,22 +417,39 @@ function applyFilterBtn() {
     goBack(); 
 }
 
-function toggleAuth() { 
+function toggleAuth() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user) {
+        toggleUserDropdown();
+        return;
+    }
     const auth = document.getElementById('authModal');
     if (auth.classList.contains('hidden-section')) {
         auth.classList.remove('hidden-section');
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (user) {
-            showAuthSection('alreadyLoggedIn');
-            document.getElementById('alreadyLoggedName').innerText = user.name.toUpperCase();
-            document.getElementById('alreadyLoggedUsername').innerText = '@' + (user.username || '');
-            document.getElementById('alreadyLoggedEmail').innerText = user.email;
-        } else {
-            switchAuth('login');
-        }
+        switchAuth('login');
         pushAppLayer('auth', () => auth.classList.add('hidden-section'));
     } else {
         goBack();
+    }
+}
+
+function toggleUserDropdown() {
+    const dropdown = document.getElementById('userDropdown');
+    const isOpen = !dropdown.classList.contains('hidden');
+    if (isOpen) {
+        dropdown.classList.add('hidden');
+    } else {
+        dropdown.classList.remove('hidden');
+        setTimeout(() => {
+            document.addEventListener('click', closeDropdownOutside, { once: true });
+        }, 0);
+    }
+}
+
+function closeDropdownOutside(e) {
+    const btn = document.getElementById('userHeaderBtn');
+    if (!btn.contains(e.target)) {
+        document.getElementById('userDropdown').classList.add('hidden');
     }
 }
 
@@ -513,7 +530,7 @@ function syncUserUI() {
     if (user) {
         btnText.innerText = user.name.split(' ')[0].toUpperCase();
         document.getElementById('userHeaderBtn').classList.add('hover-active');
-        userDropdown.classList.remove('hidden');
+        userDropdown.classList.add('hidden');
         const dName = document.getElementById('dropdownName');
         const dUser = document.getElementById('dropdownUsername');
         const dEmail = document.getElementById('dropdownEmail');
