@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const JWT_SECRET = "rift_thrift_curated_raw_secret_token_key_2026";
 
 app.use(cors());
