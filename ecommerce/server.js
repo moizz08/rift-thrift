@@ -158,6 +158,14 @@ app.post('/api/orders', (req, res) => {
     });
 });
 
+// User Route: Get own orders by email
+app.get('/api/my-orders', authenticateToken, (req, res) => {
+    db.all("SELECT * FROM orders WHERE email = ? ORDER BY id DESC", [req.user.email], (err, rows) => {
+        if (err) return res.status(500).json({ error: "Failed to fetch orders." });
+        res.json(rows);
+    });
+});
+
 // Admin Route: Get all orders
 app.get('/api/admin/orders', authenticateToken, requireAdmin, (req, res) => {
     db.all("SELECT * FROM orders ORDER BY id DESC", [], (err, rows) => {

@@ -74,7 +74,8 @@
                             <p id="dropdownUsername" class="text-[11px] text-gray-400 tracking-wider truncate"></p>
                             <p id="dropdownEmail" class="text-[11px] text-gray-400 truncate"></p>
                         </div>
-                        <button onclick="logout()" class="w-full text-left px-4 py-3 text-xs font-bold text-red-600 hover:bg-gray-50 uppercase tracking-widest"><i class="fa-solid fa-arrow-right-from-bracket mr-2"></i>Sign Out</button>
+                        <button onclick="showMyOrders(); document.getElementById('userDropdown').classList.add('hidden');" class="w-full text-left px-4 py-3 text-xs font-bold text-black hover:bg-gray-50 uppercase tracking-widest"><i class="fa-solid fa-box mr-2"></i>My Orders</button>
+                        <button onclick="logout(); document.getElementById('userDropdown').classList.add('hidden');" class="w-full text-left px-4 py-3 text-xs font-bold text-red-600 hover:bg-gray-50 uppercase tracking-widest border-t"><i class="fa-solid fa-arrow-right-from-bracket mr-2"></i>Sign Out</button>
                     </div>
                 </div>
                 <div class="relative cursor-pointer hover:text-gray-600 transition cart-icon-btn" onclick="toggleCart()">
@@ -424,6 +425,31 @@
             <h2 class="logo-font text-3xl md:text-4xl font-bold tracking-widest mb-4">ORDER PLACED</h2>
             <p class="text-gray-500 mb-10 text-[13px] md:text-sm font-medium">Your order has been placed successfully. We will contact you shortly for confirmation.</p>
             <button onclick="shopAgain()" class="w-full bg-black text-white py-4 font-bold text-[11px] md:text-sm tracking-widest uppercase hover:bg-gray-800 transition cursor-pointer">Shop Again</button>
+        </div>
+    </section>
+
+    <!-- My Orders Section -->
+    <section id="myOrdersSection" class="hidden-section fixed inset-0 bg-gray-50 z-[95] overflow-y-auto pb-20 custom-scroll">
+        <div class="sticky top-0 bg-black text-white z-[96] px-6 py-4 flex items-center justify-between shadow-md">
+            <button onclick="hideMyOrders()" class="font-bold text-xs tracking-widest text-gray-400 hover:text-white transition flex items-center uppercase">
+                <i class="fa-solid fa-arrow-left mr-2"></i> Back
+            </button>
+            <span class="text-xs font-bold tracking-[0.2em] uppercase">My Orders</span>
+            <div class="w-16"></div>
+        </div>
+
+        <div class="max-w-2xl mx-auto px-4 pt-6">
+            <div id="myOrdersLoading" class="text-center py-20">
+                <div class="w-10 h-10 border-4 border-gray-200 border-t-black rounded-full animate-spin mx-auto mb-4"></div>
+                <p class="text-xs tracking-widest text-gray-400 uppercase">Loading your orders...</p>
+            </div>
+            <div id="myOrdersEmpty" class="hidden text-center py-20">
+                <i class="fa-solid fa-box-open text-5xl text-gray-200 mb-4"></i>
+                <h3 class="font-bold tracking-widest text-gray-400 uppercase mb-2">No Orders Yet</h3>
+                <p class="text-xs text-gray-400 mb-6">You haven't placed any orders yet.</p>
+                <button onclick="hideMyOrders()" class="bg-black text-white px-8 py-3 text-xs font-bold tracking-widest uppercase hover:bg-gray-800 transition">Start Shopping</button>
+            </div>
+            <div id="myOrdersList" class="hidden space-y-4"></div>
         </div>
     </section>
 
