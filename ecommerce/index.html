@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIFT THRIFT CLOTHING | Official Store</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-white">
+
+    <!-- Toast Notification -->
+    <div id="toast"><i class="fa-solid fa-check mr-2"></i> Added to Cart</div>
+
+    <!-- Sidebar / Hamburger Menu -->
+    <div id="sidebar" class="fixed inset-0 z-[60] -translate-x-full transition-transform duration-300">
+        <div class="absolute inset-0 bg-black/50 cursor-pointer no-click-effect" onclick="toggleMenu()"></div>
+        <div class="absolute inset-y-0 left-0 w-80 bg-white shadow-xl flex flex-col p-6 overflow-y-auto custom-scroll">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="font-bold tracking-widest text-[18px]">MENU</h2>
+                <button onclick="toggleMenu()" class="cursor-pointer hover:scale-110 transition-transform"><i class="fa-solid fa-xmark text-2xl text-gray-400 hover:text-black"></i></button>
+            </div>
+            <nav class="space-y-1 flex flex-col mt-2">
+                <div data-cat="Featured" onclick="navigateTo('Featured')" class="menu-item-cat border-l-[3px] border-black bg-gray-100 text-black cursor-pointer font-bold text-[14px] tracking-widest py-3 px-4 transition-all rounded-r-md">FEATURED</div>
+                <div data-cat="Men" onclick="navigateTo('Men')" class="menu-item-cat border-l-[3px] border-transparent text-gray-500 hover:text-black hover:bg-gray-50 cursor-pointer font-bold text-[14px] tracking-widest py-3 px-4 transition-all rounded-r-md">MEN</div>
+                <div data-cat="Women" onclick="navigateTo('Women')" class="menu-item-cat border-l-[3px] border-transparent text-gray-500 hover:text-black hover:bg-gray-50 cursor-pointer font-bold text-[14px] tracking-widest py-3 px-4 transition-all rounded-r-md">WOMEN</div>
+                <div data-cat="Kids" onclick="navigateTo('Kids')" class="menu-item-cat border-l-[3px] border-transparent text-gray-500 hover:text-black hover:bg-gray-50 cursor-pointer font-bold text-[14px] tracking-widest py-3 px-4 transition-all rounded-r-md">KIDS</div>
+
+                <div class="my-4 border-b border-gray-100"></div>
+
+                <div onclick="showPage('policy')" class="menu-item-info border-l-[3px] border-transparent text-gray-500 hover:text-black hover:bg-gray-50 cursor-pointer font-bold text-[13px] tracking-widest py-3 px-4 transition-all rounded-r-md">RETURN/EXCHANGE POLICY</div>
+                <div onclick="showPage('about')" class="menu-item-info border-l-[3px] border-transparent text-gray-500 hover:text-black hover:bg-gray-50 cursor-pointer font-bold text-[13px] tracking-widest py-3 px-4 transition-all rounded-r-md">ABOUT US</div>
+                <div onclick="showPage('contact')" class="menu-item-info border-l-[3px] border-transparent text-gray-500 hover:text-black hover:bg-gray-50 cursor-pointer font-bold text-[13px] tracking-widest py-3 px-4 transition-all rounded-r-md">CONTACT US</div>
+
+                <div class="my-4 border-b border-gray-100"></div>
+                <div id="adminMenuLink" onclick="showAdminPanel()" class="hidden border-l-[3px] border-red-500 text-red-500 hover:bg-red-50 cursor-pointer font-bold text-[13px] tracking-widest py-3 px-4 transition-all rounded-r-md uppercase"><i class="fa-solid fa-lock mr-2"></i>Admin Dashboard</div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Header -->
+    <header class="sticky top-0 bg-white border-b z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 h-[65px] md:h-[80px] flex items-center justify-between">
+            <div class="flex items-center gap-3 md:gap-4 flex-1">
+                <button onclick="toggleMenu()" class="text-xl hover:text-gray-600 transition cursor-pointer"><i class="fa-solid fa-bars"></i></button>
+
+                <!-- Desktop Search -->
+                <div class="relative hidden md:flex items-center gap-2 ml-2">
+                    <button id="desktopSearchClose" onclick="closeDesktopSearch()" class="hidden text-gray-400 hover:text-red-500 transition cursor-pointer text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
+                    <div class="relative group flex items-center">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm z-10 pointer-events-none"></i>
+                        <input type="text" id="desktopSearchInput" placeholder="Search Denim, Men..." oninput="handleSearchInput()" onfocus="showDesktopSearchClose()" class="pl-9 pr-8 py-2 border border-gray-200 rounded-full text-xs w-56 focus:w-72 transition-all duration-300 focus:border-black outline-none cursor-text bg-gray-50 hover:bg-white">
+                        <button onclick="clearSearch('desktop')" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 hover:text-black cursor-pointer transition tracking-wider">CLEAR</button>
+                    </div>
+                </div>
+                <button class="md:hidden text-xl hover:text-gray-600 cursor-pointer" onclick="toggleMobileSearch()"><i class="fa-solid fa-magnifying-glass"></i></button>
+            </div>
+
+            <!-- Logo -->
+            <div class="text-center flex justify-center cursor-pointer hover:scale-[1.02] transition-transform no-click-effect" onclick="resetHomeLogic(false)">
+                <img src="https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg" alt="Rift Thrift Logo" class="h-8 md:h-13 object-contain">
+            </div>
+
+            <div class="flex items-center justify-end gap-5 flex-1">
+                <div id="userHeaderBtn" class="relative group">
+                    <button class="text-xl hover:text-gray-600 transition cursor-pointer flex items-center gap-1.5" onclick="toggleAuth()">
+                        <i class="fa-regular fa-user"></i>
+                        <span id="userHeaderName" class="text-xs font-bold tracking-wider hidden lg:inline"></span>
+                    </button>
+                    <div id="userDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white border shadow-lg py-2 rounded z-50">
+                        <button onclick="logout()" class="w-full text-left px-4 py-2 text-xs font-bold text-red-600 hover:bg-gray-100 uppercase tracking-widest"><i class="fa-solid fa-arrow-right-from-bracket mr-2"></i>Sign Out</button>
+                    </div>
+                </div>
+                <div class="relative cursor-pointer hover:text-gray-600 transition cart-icon-btn" onclick="toggleCart()">
+                    <i class="fa-solid fa-bag-shopping text-xl"></i>
+                    <span class="absolute -top-2 -right-2 bg-black text-white text-[11px] w-5 h-5 rounded-full flex items-center justify-center font-bold cart-badge">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Search Bar -->
+        <div id="mobileSearch" class="hidden px-4 pb-3 border-b bg-white items-center gap-3">
+            <button onclick="toggleMobileSearch()" class="text-gray-400 hover:text-red-500 cursor-pointer text-lg font-bold"><i class="fa-solid fa-xmark"></i></button>
+            <div class="relative flex-1">
+                <input type="text" id="mobileSearchInput" placeholder="Search items..." oninput="handleSearchInput()" class="w-full pl-4 pr-8 py-2 bg-gray-100 rounded-full text-sm outline-none border focus:border-black transition-colors cursor-text">
+                <button onclick="clearSearch('mobile')" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 hover:text-black cursor-pointer transition tracking-wider">CLEAR</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Filter Drawer Modal -->
+    <div id="filterDrawer" class="fixed inset-y-0 right-0 w-[320px] md:w-[380px] bg-white shadow-2xl z-[80] transform translate-x-full transition-transform duration-300 flex flex-col">
+        <div class="p-5 md:p-6 border-b flex justify-between items-center bg-gray-50">
+            <h2 class="font-bold tracking-[0.2em] text-sm md:text-base uppercase text-gray-800">Filter & Sort</h2>
+            <button onclick="toggleFilter()" class="cursor-pointer text-gray-400 hover:text-black transition-colors"><i class="fa-solid fa-xmark text-xl md:text-2xl"></i></button>
+        </div>
+        <div class="flex-1 overflow-y-auto custom-scroll p-5 md:p-6 space-y-6">
+            <div>
+                <h3 class="font-bold text-[11px] md:text-xs tracking-[0.15em] text-gray-400 mb-4 uppercase border-b border-gray-100 pb-2">Sort By</h3>
+                <div class="space-y-1">
+                    <label class="flex items-center gap-3 text-[13px] md:text-sm font-bold text-gray-700 cursor-pointer p-2 hover:bg-gray-50 rounded transition">
+                        <input type="radio" name="filterOpt" value="Featured" class="filter-radio" onchange="setFilterOpt('Featured')"> FEATURED
+                    </label>
+                    <label class="flex items-center gap-3 text-[13px] md:text-sm font-bold text-gray-700 cursor-pointer p-2 hover:bg-gray-50 rounded transition">
+                        <input type="radio" name="filterOpt" value="Best Seller" class="filter-radio" onchange="setFilterOpt('Best Seller')"> BEST SELLER
+                    </label>
+                    <label class="flex items-center gap-3 text-[13px] md:text-sm font-bold text-gray-700 cursor-pointer p-2 hover:bg-gray-50 rounded transition">
+                        <input type="radio" name="filterOpt" value="New Arrivals" class="filter-radio" onchange="setFilterOpt('New Arrivals')"> NEW ARRIVALS
+                    </label>
+                    <label class="flex items-center gap-3 text-[13px] md:text-sm font-bold text-gray-700 cursor-pointer p-2 hover:bg-gray-50 rounded transition">
+                        <input type="radio" name="filterOpt" value="Flash Sale" class="filter-radio" onchange="setFilterOpt('Flash Sale')"> FLASH SALE
+                    </label>
+                    <label class="flex items-center gap-3 text-[13px] md:text-sm font-bold text-gray-700 cursor-pointer p-2 hover:bg-gray-50 rounded transition">
+                        <input type="radio" name="filterOpt" value="Shop by Category" class="filter-radio" onchange="setFilterOpt('Shop by Category')"> SHOP BY CATEGORY
+                    </label>
+                </div>
+
+                <div id="subCategorySection" class="hidden pl-8 mt-2 space-y-1 border-l-2 border-gray-200 ml-3">
+                    <label class="flex items-center gap-3 text-[12px] md:text-[13px] font-bold text-gray-600 cursor-pointer p-1.5 hover:bg-gray-50 rounded transition">
+                        <input type="radio" name="subCatOpt" value="All" class="filter-radio !w-4 !h-4" onchange="setSubCat('All')" checked> ALL CATEGORIES
+                    </label>
+                    <label class="flex items-center gap-3 text-[12px] md:text-[13px] font-bold text-gray-600 cursor-pointer p-1.5 hover:bg-gray-50 rounded transition">
+                        <input type="radio" name="subCatOpt" value="Denim" class="filter-radio !w-4 !h-4" onchange="setSubCat('Denim')"> DENIM
+                    </label>
+                    <label class="flex items-center gap-3 text-[12px] md:text-[13px] font-bold text-gray-600 cursor-pointer p-1.5 hover:bg-gray-50 rounded transition">
+                        <input type="radio" name="subCatOpt" value="Baggy" class="filter-radio !w-4 !h-4" onchange="setSubCat('Baggy')"> BAGGY
+                    </label>
+                    <label class="flex items-center gap-3 text-[12px] md:text-[13px] font-bold text-gray-600 cursor-pointer p-1.5 hover:bg-gray-50 rounded transition">
+                        <input type="radio" name="subCatOpt" value="Cloud Baggy" class="filter-radio !w-4 !h-4" onchange="setSubCat('Cloud Baggy')"> CLOUD BAGGY
+                    </label>
+                    <label class="flex items-center gap-3 text-[12px] md:text-[13px] font-bold text-gray-600 cursor-pointer p-1.5 hover:bg-gray-50 rounded transition">
+                        <input type="radio" name="subCatOpt" value="Skinny Jeans" class="filter-radio !w-4 !h-4" onchange="setSubCat('Skinny Jeans')"> SKINNY JEANS
+                    </label>
+                    <label class="flex items-center gap-3 text-[12px] md:text-[13px] font-bold text-gray-600 cursor-pointer p-1.5 hover:bg-gray-50 rounded transition">
+                        <input type="radio" name="subCatOpt" value="Shorts" class="filter-radio !w-4 !h-4" onchange="setSubCat('Shorts')"> SHORTS
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="p-5 md:p-6 border-t bg-gray-50">
+            <button onclick="applyFilterBtn()" class="w-full bg-black text-white py-3.5 font-bold text-[11px] md:text-xs tracking-widest hover:bg-gray-800 transition cursor-pointer shadow">APPLY FILTERS</button>
+        </div>
+    </div>
+    <div id="filterOverlay" class="fixed inset-0 bg-black/50 z-[75] hidden cursor-pointer no-click-effect" onclick="toggleFilter()"></div>
+
+    <!-- Image Lightbox -->
+    <div id="lightbox" class="hidden-section fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div class="absolute inset-0 cursor-pointer no-click-effect" onclick="closeLightbox()"></div>
+        <div id="lightbox-counter" class="absolute top-4 left-4 md:top-8 md:left-8 bg-black/50 border border-white/20 px-3 py-1 rounded text-white text-xs md:text-sm z-[110] font-bold tracking-widest shadow">1/3</div>
+        <button class="absolute top-4 right-4 md:top-8 md:right-8 text-white text-3xl md:text-4xl z-[110] cursor-pointer hover:text-gray-300 drop-shadow-md" onclick="closeLightbox()"><i class="fa-solid fa-xmark"></i></button>
+        <button class="absolute left-2 md:left-6 top-1/2 -translate-y-1/2 text-white text-3xl md:text-5xl z-[110] cursor-pointer p-4 hover:text-gray-300 drop-shadow-md hidden md:block" onclick="changeLightboxImg(-1)">&#10094;</button>
+        <button class="absolute right-2 md:right-6 top-1/2 -translate-y-1/2 text-white text-3xl md:text-5xl z-[110] cursor-pointer p-4 hover:text-gray-300 drop-shadow-md hidden md:block" onclick="changeLightboxImg(1)">&#10095;</button>
+
+        <div class="relative z-[105] w-[90vw] h-[85vh] flex items-center justify-center rounded-lg overflow-hidden touch-none no-click-effect" id="lightbox-img-container">
+            <div id="lightbox-loader" class="absolute inset-0 flex items-center justify-center text-white z-[104]">
+                <i class="fa-solid fa-circle-notch fa-spin text-4xl"></i>
+            </div>
+            <img id="lightbox-img" src="" class="max-w-full max-h-full object-contain transform origin-center shadow-2xl rounded-md opacity-0 relative z-[105]" onload="this.classList.remove('opacity-0'); document.getElementById('lightbox-loader').style.display='none';" />
+        </div>
+    </div>
+
+    <!-- Cart Drawer Modal -->
+    <div id="cartDrawer" class="fixed inset-y-0 right-0 w-[350px] md:w-[400px] bg-white shadow-2xl z-[80] transform translate-x-full transition-transform duration-300 flex flex-col">
+        <div class="p-5 border-b flex justify-between items-center bg-gray-50">
+            <h2 class="font-bold tracking-widest text-lg">YOUR CART</h2>
+            <button onclick="toggleCart()" class="cursor-pointer"><i class="fa-solid fa-xmark text-xl hover:text-red-500 transition-colors"></i></button>
+        </div>
+        <div id="cartItemsList" class="flex-1 overflow-y-auto custom-scroll p-5 space-y-5"></div>
+        <div class="p-5 border-t bg-gray-50">
+            <div class="flex justify-between font-bold mb-2 text-sm text-gray-600">
+                <span class="tracking-widest">SUBTOTAL:</span> 
+                <span id="cartSubtotal">Rs. 0</span>
+            </div>
+            <div class="flex justify-between font-bold mb-4 text-sm text-gray-600">
+                <span class="tracking-widest">SHIPPING:</span> 
+                <span>Rs. 250</span>
+            </div>
+            <div class="flex justify-between font-bold mb-5 text-sm border-t border-gray-200 pt-3">
+                <span class="tracking-widest">TOTAL AMOUNT:</span> 
+                <span id="cartTotal" class="text-lg text-black">Rs. 0</span>
+            </div>
+            <button onclick="proceedToCheckout(false)" class="w-full bg-black text-white py-4 font-bold text-sm tracking-widest hover:bg-gray-800 transition shadow-md hover:shadow-lg transform hover:-translate-y-1 cursor-pointer">CHECKOUT</button>
+        </div>
+    </div>
+    <div id="cartOverlay" class="fixed inset-0 bg-black/50 z-[75] hidden cursor-pointer no-click-effect" onclick="toggleCart()"></div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="hidden-section fixed inset-0 z-[90] flex justify-center items-center">
+        <div class="absolute inset-0 bg-black/60 cursor-pointer no-click-effect" onclick="toggleAuth()"></div>
+        <div class="bg-white w-[90%] max-w-md p-8 relative shadow-2xl z-10 max-h-[90vh] overflow-y-auto custom-scroll">
+            <button onclick="toggleAuth()" class="absolute top-4 right-4 text-gray-400 hover:text-black cursor-pointer"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <div class="flex justify-center mb-6">
+                <img src="https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg" alt="Rift Thrift Logo" class="h-8 object-contain no-click-effect">
+            </div>
+
+            <div id="loginSection">
+                <h2 class="font-bold text-center mb-6 tracking-widest text-lg">SIGN IN</h2>
+                <form id="loginForm" onsubmit="handleLoginSubmit(event)" class="space-y-6">
+                    <input type="email" id="loginEmail" placeholder="EMAIL ADDRESS" required class="w-full border-b p-3 text-sm outline-none focus:border-black font-medium cursor-text bg-transparent">
+                    <input type="password" id="loginPassword" placeholder="PASSWORD" required class="w-full border-b p-3 text-sm outline-none focus:border-black font-medium cursor-text bg-transparent">
+                    <button type="submit" class="w-full bg-black text-white py-4 font-bold text-xs tracking-widest hover:bg-gray-800 transition cursor-pointer shadow hover:shadow-lg">LOGIN</button>
+                </form>
+                <p class="text-xs font-bold text-center mt-6 text-gray-400 tracking-widest cursor-pointer hover:text-black" onclick="switchAuth('signup')">CREATE NEW ACCOUNT</p>
+            </div>
+
+            <div id="signupSection" class="hidden">
+                <h2 class="font-bold text-center mb-6 tracking-widest text-lg">CREATE ACCOUNT</h2>
+                <form id="signupForm" onsubmit="handleSignupSubmit(event)" class="space-y-4">
+                    <input type="text" id="signupName" placeholder="FULL NAME" required class="w-full border-b p-3 text-sm outline-none focus:border-black font-medium cursor-text bg-transparent">
+                    <input type="text" id="signupUsername" placeholder="USERNAME" required class="w-full border-b p-3 text-sm outline-none focus:border-black font-medium cursor-text bg-transparent">
+                    <input type="email" id="signupEmail" placeholder="EMAIL ADDRESS" required class="w-full border-b p-3 text-sm outline-none focus:border-black font-medium cursor-text bg-transparent">
+                    <input type="tel" id="signupPhone" placeholder="PHONE NUMBER" required class="w-full border-b p-3 text-sm outline-none focus:border-black font-medium cursor-text bg-transparent">
+                    <input type="password" id="signupPassword" placeholder="PASSWORD" required class="w-full border-b p-3 text-sm outline-none focus:border-black font-medium cursor-text bg-transparent">
+                    <button type="submit" class="w-full bg-black text-white py-4 mt-2 font-bold text-xs tracking-widest hover:bg-gray-800 transition cursor-pointer shadow hover:shadow-lg">SIGN UP</button>
+                </form>
+                <p class="text-xs font-bold text-center mt-6 text-gray-400 tracking-widest cursor-pointer hover:text-black" onclick="switchAuth('login')">ALREADY HAVE AN ACCOUNT? SIGN IN</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Pages -->
+    <section id="infoSection" class="hidden-section pt-6 pb-20">
+        <div class="max-w-3xl mx-auto px-4">
+            <div class="relative flex items-center justify-center mb-6 md:mb-8 min-h-[30px]">
+                <button onclick="goBack()" class="absolute left-0 font-bold text-[11px] md:text-xs tracking-widest text-gray-500 hover:text-black transition cursor-pointer flex items-center uppercase z-10">
+                    <i class="fa-solid fa-arrow-left mr-2 text-sm"></i> <span>BACK</span>
+                </button>
+                <h2 id="infoTitle" class="logo-font text-2xl md:text-3xl font-bold m-0 text-center uppercase">TITLE</h2>
+            </div>
+            <div id="infoContent" class="text-gray-600 text-[13px] md:text-sm leading-relaxed space-y-4"></div>
+        </div>
+    </section>
+
+    <!-- Hero Banner -->
+    <div id="heroBanner" class="relative w-full overflow-hidden bg-black" style="height: clamp(230px, 34vw, 310px);">
+        <div class="absolute inset-0 opacity-[0.07] pointer-events-none" style="background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><filter id=%22n%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22/><feColorMatrix type=%22saturate%22 values=%220%22/></filter><rect width=%22200%22 height=%22200%22 filter=%22url(%23n)%22 opacity=%221%22/></svg>');background-size:200px;"></div>
+        <div class="absolute top-4 left-4 w-7 h-7 border-t border-l border-white/20"></div>
+        <div class="absolute top-4 right-4 w-7 h-7 border-t border-r border-white/20"></div>
+        <div class="absolute bottom-4 left-4 w-7 h-7 border-b border-l border-white/20"></div>
+        <div class="absolute bottom-4 right-4 w-7 h-7 border-b border-r border-white/20"></div>
+
+        <div class="relative z-10 h-full flex flex-col items-center justify-center text-center px-10">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-6 h-[1px] bg-white/25"></div>
+                <p class="text-white/40 text-[9px] font-bold tracking-[0.45em] uppercase">Karachi · Est. 2024</p>
+                <div class="w-6 h-[1px] bg-white/25"></div>
+            </div>
+            <h1 class="logo-font text-white text-[28px] sm:text-[34px] font-bold leading-[1.1] tracking-[0.04em] mb-3">
+                CURATED THREADS.<br>
+                <span class="text-white/70">REAL PRICES.</span>
+            </h1>
+            <div class="flex items-center gap-2 mb-4">
+                <div class="w-1 h-1 rounded-full bg-white/20"></div>
+                <p class="text-white/40 text-[9px] font-medium tracking-[0.3em] uppercase">Premium denim &amp; streetwear</p>
+                <div class="w-1 h-1 rounded-full bg-white/20"></div>
+            </div>
+            <button onclick="document.getElementById('homeSection').scrollIntoView({behavior:'smooth'})"
+                class="border border-white/25 text-white/80 hover:text-black hover:bg-white text-[9px] font-bold tracking-[0.35em] uppercase px-6 py-2 transition-all duration-300 cursor-pointer">
+                SHOP NOW
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Products Section -->
+    <main id="homeSection" class="pt-6 md:pt-10">
+        <div class="max-w-7xl mx-auto px-4 relative">
+            <div class="relative flex items-center justify-center mb-6 md:mb-8 min-h-[30px]">
+                <button id="sectionBackBtn" onclick="goBack()" class="hidden absolute left-0 font-bold text-[11px] md:text-xs tracking-widest text-gray-500 hover:text-black transition cursor-pointer flex items-center uppercase z-10">
+                    <i class="fa-solid fa-arrow-left mr-2 text-sm"></i> <span>BACK</span>
+                </button>
+                <h2 id="catDisplay" class="text-center font-bold tracking-[0.25em] text-[16px] md:text-[20px] uppercase m-0 text-gray-900">FEATURED</h2>
+                <div class="absolute right-0 flex items-center gap-2 z-10">
+                    <button id="clearFilterBtn" onclick="clearFiltersFromPage()" class="hidden items-center gap-1 text-[9px] md:text-[10px] font-bold tracking-wider text-gray-400 hover:text-red-500 transition cursor-pointer uppercase border-r border-gray-200 pr-2 mr-0.5">
+                        <i class="fa-solid fa-xmark text-[9px]"></i> Clear
+                    </button>
+                    <button id="filterIconBtn" onclick="toggleFilter()" class="font-bold text-[11px] md:text-xs tracking-widest text-gray-500 hover:text-black transition cursor-pointer flex items-center gap-1.5 p-1 uppercase">
+                        <i class="fa-solid fa-sliders text-sm md:text-base"></i>
+                        <span class="hidden sm:inline">Filter</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="productGrid" class="grid grid-cols-2 md:grid-cols-4 gap-y-6 md:gap-y-10 gap-x-3 md:gap-x-4 transition-all duration-500"></div>
+
+            <div id="pagination" class="flex flex-col items-center mt-12 md:mt-16 mb-20 space-y-3">
+                <div class="flex gap-4">
+                    <button id="prevBtn" onclick="changePage(-1)" class="border border-black px-6 py-2 text-xs font-bold uppercase transition hover:bg-black hover:text-white disabled:opacity-20 cursor-pointer bg-white text-black">PREV</button>
+                    <button id="nextBtn" onclick="changePage(1)" class="border border-black px-6 py-2 text-xs font-bold uppercase transition hover:bg-black hover:text-white disabled:opacity-20 cursor-pointer bg-white text-black">NEXT</button>
+                </div>
+                <p id="pageInfo" class="text-[11px] font-bold tracking-widest text-gray-400">PAGE 1 OUT OF 2</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Detail Section -->
+    <section id="detailSection" class="hidden-section fixed inset-0 bg-white z-[65] overflow-y-auto pb-20 custom-scroll">
+        <div class="sticky top-0 bg-white z-[70] shadow-sm border-b px-4">
+            <div class="max-w-5xl mx-auto py-4 md:py-6 flex items-center justify-between">
+                <div class="flex-1 flex justify-start">
+                    <button onclick="hideDetail()" class="font-bold text-[11px] md:text-xs tracking-widest text-gray-500 hover:text-black transition cursor-pointer flex items-center uppercase"><i class="fa-solid fa-arrow-left mr-2 text-sm"></i> <span>BACK</span></button>
+                </div>
+                <div class="flex justify-center">
+                    <img src="https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg" alt="Rift Thrift Logo" class="h-8 md:h-13 object-contain cursor-pointer no-click-effect" onclick="resetHomeLogic(false)">
+                </div>
+                <div class="flex-1 flex justify-end">
+                    <div class="relative cursor-pointer hover:text-gray-600 transition cart-icon-btn" onclick="toggleCart()">
+                        <i class="fa-solid fa-bag-shopping text-xl md:text-2xl"></i>
+                        <span class="absolute -top-2 -right-2 bg-black text-white text-[11px] w-5 h-5 rounded-full flex items-center justify-center font-bold cart-badge">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="max-w-5xl mx-auto px-4 relative pt-6 md:pt-8">
+            <div id="detailContent" class="grid md:grid-cols-2 gap-6 md:gap-8"></div>
+        </div>
+    </section>
+
+    <!-- Checkout Section -->
+    <section id="checkoutSection" class="hidden-section fixed inset-0 bg-white z-[90] overflow-y-auto">
+        <div class="max-w-xl mx-auto px-4 py-4 md:py-12">
+            <div class="flex items-center justify-between mb-6 md:mb-8">
+                <div class="flex-1 flex justify-start">
+                    <button type="button" onclick="hideCheckout()" class="font-bold text-[11px] md:text-xs tracking-widest text-gray-500 hover:text-black transition cursor-pointer flex items-center uppercase"><i class="fa-solid fa-arrow-left mr-2 text-sm"></i> <span>BACK</span></button>
+                </div>
+                <div class="flex justify-center">
+                    <img src="https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg" alt="Rift Thrift Logo" class="h-8 md:h-13 object-contain cursor-pointer no-click-effect" onclick="hideCheckout()">
+                </div>
+                <div class="flex-1"></div>
+            </div>
+
+            <h2 class="font-bold text-center mb-6 md:mb-8 tracking-widest text-xl md:text-2xl">CHECKOUT</h2>
+            <form id="checkoutForm" onsubmit="finishOrder(event)" class="space-y-6">
+                <div class="bg-gray-50 p-4 md:p-6 border mb-6 md:mb-8 rounded-sm">
+                    <h3 class="font-bold tracking-widest text-sm md:text-lg mb-4 border-b border-gray-200 pb-3 uppercase text-center">Order Summary</h3>
+                    <div id="checkoutSummaryItems" class="space-y-4 mb-4 max-h-[35vh] overflow-y-auto custom-scroll pr-2"></div>
+                    <div class="border-t border-gray-200 pt-4 space-y-3 text-[13px] md:text-sm font-bold text-gray-500 tracking-widest">
+                        <div class="flex justify-between items-center">
+                            <span>SUBTOTAL</span>
+                            <span id="chkSubtotal" class="text-black">Rs. 0</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>SHIPPING</span>
+                            <span class="text-black">Rs. 250</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[13px] md:text-sm text-black pt-3 border-t border-gray-200 mt-2">
+                            <span class="text-sm md:text-base">TOTAL AMOUNT</span>
+                            <span id="chkTotal" class="text-lg md:text-xl">Rs. 0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <input type="text" id="chkName" placeholder="FULL NAME" required class="w-full border-b p-3 text-sm outline-none focus:border-black cursor-text bg-transparent">
+                <input type="email" id="chkEmail" placeholder="EMAIL ADDRESS" required class="w-full border-b p-3 text-sm outline-none focus:border-black cursor-text bg-transparent">
+                <input type="tel" id="chkPhone" placeholder="PHONE NUMBER" required class="w-full border-b p-3 text-sm outline-none focus:border-black cursor-text bg-transparent">
+                <textarea id="chkAddress" placeholder="COMPLETE ADDRESS" required class="w-full border-b p-3 text-sm outline-none focus:border-black resize-none cursor-text bg-transparent" rows="3"></textarea>
+                <div class="pt-4">
+                    <p class="text-[11px] font-bold text-gray-400 mb-3 tracking-widest">PAYMENT METHOD</p>
+                    <div class="flex gap-4">
+                        <label class="flex-1 border border-black p-4 text-[11px] md:text-xs font-bold flex items-center justify-center gap-2 cursor-pointer bg-gray-50">
+                            <input type="radio" name="pay" checked class="accent-black cursor-pointer"> CASH ON DELIVERY
+                        </label>
+                    </div>
+                </div>
+                <div class="pt-6 md:pt-8 space-y-3 pb-8">
+                    <button type="submit" class="w-full bg-black text-white py-3.5 md:py-4 font-bold text-[11px] md:text-sm tracking-widest hover:bg-gray-800 transition cursor-pointer">PLACE ORDER</button>
+                    <button type="button" onclick="hideCheckout()" class="w-full border border-black bg-white text-black py-3.5 md:py-4 font-bold text-[11px] md:text-sm tracking-widest hover:bg-gray-50 transition cursor-pointer">CANCEL</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Order Success Section -->
+    <section id="successSection" class="hidden-section fixed inset-0 bg-white z-[100] flex justify-center items-center">
+        <div id="orderLoadingState" class="text-center px-6 max-w-md">
+            <div class="flex justify-center mb-6">
+                <div class="relative w-16 h-16">
+                    <div class="absolute inset-0 rounded-full border-4 border-gray-100"></div>
+                    <div class="absolute inset-0 rounded-full border-4 border-black border-t-transparent animate-spin"></div>
+                </div>
+            </div>
+            <p class="text-[11px] font-bold tracking-[0.2em] text-gray-400 uppercase">Processing your order...</p>
+        </div>
+        <div id="orderSuccessState" class="text-center px-6 max-w-md hidden">
+            <i class="fa-regular fa-circle-check text-[80px] text-green-500 mb-8"></i>
+            <h2 class="logo-font text-3xl md:text-4xl font-bold tracking-widest mb-4">ORDER PLACED</h2>
+            <p class="text-gray-500 mb-10 text-[13px] md:text-sm font-medium">Your order has been placed successfully. We will contact you shortly for confirmation.</p>
+            <button onclick="shopAgain()" class="w-full bg-black text-white py-4 font-bold text-[11px] md:text-sm tracking-widest uppercase hover:bg-gray-800 transition cursor-pointer">Shop Again</button>
+        </div>
+    </section>
+
+    <!-- Admin Panel Section -->
+    <section id="adminSection" class="hidden-section fixed inset-0 bg-gray-50 z-[95] overflow-y-auto pb-20 custom-scroll">
+        <div class="sticky top-0 bg-black text-white z-[96] px-6 py-4 flex items-center justify-between shadow-md">
+            <div class="flex items-center gap-4">
+                <button onclick="hideAdminPanel()" class="font-bold text-xs tracking-widest text-gray-400 hover:text-white transition flex items-center uppercase">
+                    <i class="fa-solid fa-arrow-left mr-2"></i> Exit Panel
+                </button>
+                <span class="text-gray-600 font-bold">|</span>
+                <h1 class="font-bold tracking-[0.2em] text-sm uppercase">RIFT CONTROL HUB</h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="adminNameDisplay" class="text-xs font-bold tracking-widest text-gray-300 uppercase">ADMIN</span>
+                <button onclick="logout()" class="text-xs font-bold bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded text-white tracking-wider transition uppercase">Logout</button>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 mt-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded shadow-sm border border-gray-100">
+                    <p class="text-xs font-bold text-gray-400 tracking-wider uppercase mb-1">Total Sales Revenue</p>
+                    <h3 id="adminTotalRevenue" class="text-2xl font-bold text-black">Rs. 0</h3>
+                </div>
+                <div class="bg-white p-6 rounded shadow-sm border border-gray-100">
+                    <p class="text-xs font-bold text-gray-400 tracking-wider uppercase mb-1">Total Received Orders</p>
+                    <h3 id="adminTotalOrders" class="text-2xl font-bold text-black">0</h3>
+                </div>
+                <div class="bg-white p-6 rounded shadow-sm border border-gray-100">
+                    <p class="text-xs font-bold text-gray-400 tracking-wider uppercase mb-1">Pending Deliveries</p>
+                    <h3 id="adminPendingOrders" class="text-2xl font-bold text-yellow-600">0</h3>
+                </div>
+            </div>
+
+            <div class="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                    <h3 class="font-bold tracking-widest text-xs uppercase text-gray-700">Order Management Database</h3>
+                    <button onclick="loadAdminDashboard()" class="text-[10px] font-bold text-black border border-black px-3 py-1.5 rounded tracking-widest hover:bg-black hover:text-white transition uppercase">
+                        <i class="fa-solid fa-rotate mr-1"></i> Sync Data
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-500 text-[10px] font-bold tracking-widest uppercase border-b border-gray-200">
+                                <th class="p-4">ID</th>
+                                <th class="p-4">Customer Details</th>
+                                <th class="p-4">Items / Specifications</th>
+                                <th class="p-4">Total Pay</th>
+                                <th class="p-4">Delivery Status</th>
+                                <th class="p-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminOrdersTable" class="text-xs divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="max-w-7xl mx-auto px-4 mt-16 md:mt-20 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 py-10 border-y border-gray-200">
+            <div class="text-center flex flex-col items-center">
+                <i class="fa-solid fa-truck-fast text-2xl md:text-3xl mb-4 text-black"></i>
+                <h3 class="font-bold text-[12px] md:text-sm tracking-widest uppercase">Fast Shipping</h3>
+                <p class="text-[11px] md:text-xs text-gray-500 mt-2 font-medium">Nationwide delivery in 3-5 days</p>
+            </div>
+            <div class="text-center flex flex-col items-center">
+                <i class="fa-solid fa-rotate-left text-2xl md:text-3xl mb-4 text-black"></i>
+                <h3 class="font-bold text-[12px] md:text-sm tracking-widest uppercase">Easy Returns</h3>
+                <p class="text-[11px] md:text-xs text-gray-500 mt-2 font-medium">14 days exchange policy</p>
+            </div>
+            <div class="text-center flex flex-col items-center">
+                <i class="fa-solid fa-hand-holding-dollar text-2xl md:text-3xl mb-4 text-black"></i>
+                <h3 class="font-bold text-[12px] md:text-sm tracking-widest uppercase">Cash on Delivery</h3>
+                <p class="text-[11px] md:text-xs text-gray-500 mt-2 font-medium">Pay securely at your doorstep</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-black text-white mt-10 md:mt-16">
+        <div class="max-w-7xl mx-auto px-6 md:px-8 pt-10 md:pt-16 pb-8 md:pb-12 border-b border-white/10">
+            <div class="flex flex-col items-start mb-8 md:hidden">
+                <img src="https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg" alt="Rift Thrift Logo" class="h-7 object-contain mb-3 brightness-0 invert no-click-effect">
+                <p class="text-white/35 text-[11px] leading-relaxed font-medium max-w-[260px]">Premium curated denim &amp; streetwear from Karachi. Real quality, real prices.</p>
+                <div class="flex gap-4 mt-4">
+                    <a href="#" class="text-white/35 hover:text-white transition-colors cursor-pointer"><i class="fa-brands fa-instagram text-base"></i></a>
+                    <a href="#" class="text-white/35 hover:text-white transition-colors cursor-pointer"><i class="fa-brands fa-facebook text-base"></i></a>
+                    <a href="#" class="text-white/35 hover:text-white transition-colors cursor-pointer"><i class="fa-brands fa-tiktok text-base"></i></a>
+                    <a href="#" class="text-white/35 hover:text-white transition-colors cursor-pointer"><i class="fa-brands fa-whatsapp text-base"></i></a>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-8">
+                <div class="hidden md:flex flex-col items-start">
+                    <img src="https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg" alt="Rift Thrift Logo" class="h-9 object-contain mb-4 brightness-0 invert no-click-effect">
+                    <p class="text-white/40 text-xs leading-relaxed font-medium max-w-[220px]">Premium curated denim &amp; streetwear from Karachi. Real quality, real prices.</p>
+                    <div class="flex gap-4 mt-6">
+                        <a href="#" class="text-white/40 hover:text-white transition-colors cursor-pointer"><i class="fa-brands fa-instagram text-lg"></i></a>
+                        <a href="#" class="text-white/40 hover:text-white transition-colors cursor-pointer"><i class="fa-brands fa-facebook text-lg"></i></a>
+                        <a href="#" class="text-white/40 hover:text-white transition-colors cursor-pointer"><i class="fa-brands fa-tiktok text-lg"></i></a>
+                        <a href="#" class="text-white/40 hover:text-white transition-colors cursor-pointer"><i class="fa-brands fa-whatsapp text-lg"></i></a>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-[9px] font-bold tracking-[0.3em] text-white/25 uppercase mb-4">Shop</p>
+                    <nav class="space-y-2.5">
+                        <div onclick="navigateTo('Men')" class="text-white/55 hover:text-white text-[12px] font-medium tracking-wide cursor-pointer transition-colors">Men</div>
+                        <div onclick="navigateTo('Women')" class="text-white/55 hover:text-white text-[12px] font-medium tracking-wide cursor-pointer transition-colors">Women</div>
+                        <div onclick="navigateTo('Kids')" class="text-white/55 hover:text-white text-[12px] font-medium tracking-wide cursor-pointer transition-colors">Kids</div>
+                        <div onclick="showPage('policy')" class="text-white/55 hover:text-white text-[12px] font-medium tracking-wide cursor-pointer transition-colors">Returns &amp; Exchange</div>
+                        <div onclick="showPage('about')" class="text-white/55 hover:text-white text-[12px] font-medium tracking-wide cursor-pointer transition-colors">About Us</div>
+                    </nav>
+                </div>
+
+                <div>
+                    <p class="text-[9px] font-bold tracking-[0.3em] text-white/25 uppercase mb-4">Contact</p>
+                    <div class="space-y-2.5">
+                        <a href="https://www.instagram.com/rift_pk" target="_blank" class="flex items-center gap-2.5 text-white/55 hover:text-white text-[12px] font-medium cursor-pointer transition-colors">
+                            <i class="fa-brands fa-instagram w-3.5 text-center shrink-0"></i> @rift_pk
+                        </a>
+                        <a href="https://wa.me/923001234567" target="_blank" class="flex items-center gap-2.5 text-white/55 hover:text-white text-[12px] font-medium cursor-pointer transition-colors">
+                            <i class="fa-brands fa-whatsapp w-3.5 text-center shrink-0"></i> +92 300 1234567
+                        </a>
+                        <div onclick="showPage('contact')" class="flex items-center gap-2.5 text-white/55 hover:text-white text-[12px] font-medium cursor-pointer transition-colors">
+                            <i class="fa-solid fa-envelope w-3.5 text-center shrink-0"></i> support@riftthrift.pk
+                        </div>
+                        <div class="flex items-start gap-2.5 text-white/35 text-[12px] font-medium">
+                            <i class="fa-solid fa-location-dot w-3.5 text-center shrink-0 mt-0.5"></i> Karachi, Pakistan
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-6 md:px-8 py-4 md:py-5 flex flex-col md:flex-row items-center justify-between gap-1.5 md:gap-3">
+            <p class="text-[9px] font-bold text-white/20 tracking-[0.2em] uppercase">© RIFT THRIFT 2026 — ALL RIGHTS RESERVED</p>
+            <p class="text-[9px] font-medium text-white/15 tracking-wider">Made with ♥ in Karachi</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
