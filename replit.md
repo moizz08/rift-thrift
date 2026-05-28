@@ -1,6 +1,6 @@
-# [Project name]
+# API Server
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A pnpm-workspace Express 5 API server with PostgreSQL, Drizzle ORM, and OpenAPI-driven codegen.
 
 ## Run & Operate
 
@@ -38,7 +38,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- The `Start application` workflow (Run button) starts the API on **port 5000** (`PORT=5000`). The artifact proxy workflow runs separately on port 8080 and serves `/api` in the preview pane. Both can run at the same time without conflict.
+- Always run `pnpm --filter @workspace/db run push` before starting the server after schema changes.
 
 ## Pointers
 
