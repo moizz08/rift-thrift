@@ -425,6 +425,7 @@ function toggleAuth() {
         if (user) {
             showAuthSection('alreadyLoggedIn');
             document.getElementById('alreadyLoggedName').innerText = user.name.toUpperCase();
+            document.getElementById('alreadyLoggedUsername').innerText = '@' + (user.username || '');
             document.getElementById('alreadyLoggedEmail').innerText = user.email;
         } else {
             switchAuth('login');
@@ -513,6 +514,12 @@ function syncUserUI() {
         btnText.innerText = user.name.split(' ')[0].toUpperCase();
         document.getElementById('userHeaderBtn').classList.add('hover-active');
         userDropdown.classList.remove('hidden');
+        const dName = document.getElementById('dropdownName');
+        const dUser = document.getElementById('dropdownUsername');
+        const dEmail = document.getElementById('dropdownEmail');
+        if (dName) dName.innerText = user.name.toUpperCase();
+        if (dUser) dUser.innerText = '@' + (user.username || '');
+        if (dEmail) dEmail.innerText = user.email;
 
         if (user.role === 'admin') {
             adminLink.classList.remove('hidden');
@@ -526,12 +533,24 @@ function syncUserUI() {
     }
 }
 
+function showToast(message, icon = 'fa-check') {
+    const toast = document.getElementById('toast');
+    clearTimeout(toastTimeout);
+    toast.innerHTML = `<i class="fa-solid ${icon} mr-2"></i> ${message}`;
+    toast.classList.add("show");
+    toastTimeout = setTimeout(() => { toast.classList.remove("show"); }, 2000);
+}
+
 function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    alert('Logged out successfully.');
+    const emailField = document.getElementById('loginEmail');
+    const passField = document.getElementById('loginPassword');
+    if (emailField) emailField.value = '';
+    if (passField) passField.value = '';
     syncUserUI();
     resetHomeLogic(false);
+    showToast('Logged out successfully', 'fa-arrow-right-from-bracket');
 }
 
 function showPage(page) {
@@ -661,7 +680,8 @@ function addCart(id) {
     });
 
     const toast = document.getElementById('toast');
-    clearTimeout(toastTimeout); 
+    clearTimeout(toastTimeout);
+    toast.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Added to Cart';
     toast.classList.add("show");
     toastTimeout = setTimeout(() => { toast.classList.remove("show"); }, 1500);
 }
