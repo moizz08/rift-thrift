@@ -101,6 +101,8 @@ const perPage = 8;
 let cartItems = [];
 let filteredData = [...products];
 let cardImageIndex = {};
+let appliedCoupon = null;
+let currentCheckoutSubtotal = 0;
 
 function render() {
     cardImageIndex = {}; 
@@ -807,6 +809,14 @@ function buyNow(id) {
 }
 
 function proceedToCheckout(isDirect = false) {
+    appliedCoupon = null;
+    const couponInput = document.getElementById('couponInput');
+    const couponMsg = document.getElementById('couponMsg');
+    const discountRow = document.getElementById('discountRow');
+    if (couponInput) couponInput.value = '';
+    if (couponMsg) { couponMsg.classList.add('hidden'); couponMsg.textContent = ''; }
+    if (discountRow) discountRow.classList.add('hidden');
+
     let itemsToProcess = [];
 
     if (isDirect) {
@@ -843,6 +853,7 @@ function proceedToCheckout(isDirect = false) {
         `;
     }).join('');
 
+    currentCheckoutSubtotal = subtotal;
     document.getElementById('chkSubtotal').innerText = `Rs. ${subtotal}`;
     document.getElementById('chkTotal').innerText = `Rs. ${subtotal + 250}`;
 
@@ -867,6 +878,62 @@ function proceedToCheckout(isDirect = false) {
 
 function hideCheckout() { goBack(); }
 
+async function applyCoupon() {
+    const code = document.getElementById('couponInput').value.trim().toUpperCase();
+    if (!code) { showCouponMsg('Please enter a promo code.', 'error'); return; }
+
+    const btn = document.getElementById('applyCouponBtn');
+    const originalText = btn.textContent;
+    btn.textContent = '...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_URL}/coupons/apply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, subtotal: currentCheckoutSubtotal })
+        });
+        const data = await res.json();
+        if (res.ok && data.valid) {
+            appliedCoupon = data;
+            const label = data.discount_type === 'percent' ? `${data.discount_value}% off` : `Rs. ${data.discount_value} off`;
+            showCouponMsg(`✓ Code applied! ${label} (saving Rs. ${data.discount_amount})`, 'success');
+            updateCheckoutTotal();
+        } else {
+            appliedCoupon = null;
+            showCouponMsg(data.error || 'Invalid coupon code.', 'error');
+            updateCheckoutTotal();
+        }
+    } catch {
+        showCouponMsg('Connection error. Please try again.', 'error');
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+function showCouponMsg(text, type) {
+    const el = document.getElementById('couponMsg');
+    el.textContent = text;
+    el.className = `mt-2 text-[11px] font-bold tracking-wider ${type === 'success' ? 'text-green-600' : 'text-red-500'}`;
+    el.classList.remove('hidden');
+}
+
+function updateCheckoutTotal() {
+    const discount = appliedCoupon ? appliedCoupon.discount_amount : 0;
+    const total = currentCheckoutSubtotal + 250 - discount;
+    const discountRow = document.getElementById('discountRow');
+    const chkDiscount = document.getElementById('chkDiscount');
+    const chkTotal = document.getElementById('chkTotal');
+    if (discount > 0 && discountRow && chkDiscount) {
+        discountRow.classList.remove('hidden');
+        chkDiscount.textContent = `- Rs. ${discount}`;
+    } else if (discountRow) {
+        discountRow.classList.add('hidden');
+    }
+    if (chkTotal) chkTotal.textContent = `Rs. ${total}`;
+}
+
 async function finishOrder(e) {
     e.preventDefault(); 
 
@@ -879,7 +946,8 @@ async function finishOrder(e) {
     const itemsToProcess = directBuyItem ? [directBuyItem] : cartItems;
     const subtotal = itemsToProcess.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const shipping = 250;
-    const total = subtotal + shipping;
+    const discount = appliedCoupon ? appliedCoupon.discount_amount : 0;
+    const total = subtotal + shipping - discount;
 
     const orderPayload = {
         name,
@@ -888,7 +956,9 @@ async function finishOrder(e) {
         address,
         subtotal,
         shipping,
+        discount,
         total,
+        coupon_code: appliedCoupon ? appliedCoupon.code : null,
         items: itemsToProcess.map(item => ({
             product_id: item.id,
             product_name: item.name,
@@ -922,6 +992,10 @@ async function finishOrder(e) {
         });
 
         if (res.ok) {
+            const data = await res.json();
+            const orderIdEl = document.getElementById('successOrderId');
+            if (orderIdEl) orderIdEl.textContent = '#' + data.orderId;
+            appliedCoupon = null;
             setTimeout(() => {
                 document.getElementById('orderLoadingState').classList.add('hidden');
                 document.getElementById('orderSuccessState').classList.remove('hidden');
@@ -1268,6 +1342,7 @@ function showAdminPanel() {
     const adminPanel = document.getElementById('adminSection');
     adminPanel.classList.remove('hidden-section');
     loadAdminDashboard();
+    loadAdminCoupons();
     const closeAdmin = () => adminPanel.classList.add('hidden-section');
 
     if (isMenuOpen) {
@@ -1356,6 +1431,7 @@ async function updateOrderStatus(orderId, nextStatus) {
             body: JSON.stringify({ status: nextStatus })
         });
         if (res.ok) {
+            showToast(`Status → ${nextStatus}`, 'fa-check');
             loadAdminDashboard();
         } else {
             alert('Failed to update order state.');
@@ -1363,6 +1439,88 @@ async function updateOrderStatus(orderId, nextStatus) {
     } catch (err) {
         alert('Server validation check failed.');
     }
+}
+
+function toggleNewCouponForm() {
+    const form = document.getElementById('newCouponForm');
+    form.classList.toggle('hidden');
+    if (!form.classList.contains('hidden')) {
+        document.getElementById('newCouponCode').value = '';
+        document.getElementById('newCouponValue').value = '';
+        document.getElementById('newCouponMin').value = '';
+    }
+}
+
+async function loadAdminCoupons() {
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`${API_URL}/admin/coupons`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const coupons = await res.json();
+        const tbody = document.getElementById('adminCouponsTable');
+        if (!coupons.length) {
+            tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-400 text-xs uppercase tracking-widest">No promo codes yet.</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = coupons.map(c => {
+            const discountStr = c.discount_type === 'percent' ? `${c.discount_value}% off` : `Rs. ${c.discount_value} off`;
+            const activeClass = c.is_active ? 'text-green-600 bg-green-50' : 'text-gray-400 bg-gray-100';
+            return `
+            <tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                <td class="p-4 font-mono font-bold text-black tracking-widest text-[11px]">${c.code}</td>
+                <td class="p-4 font-bold text-[12px]">${discountStr}</td>
+                <td class="p-4 text-gray-500 text-[11px]">${Number(c.min_order) > 0 ? 'Rs. ' + c.min_order : 'Any'}</td>
+                <td class="p-4 text-gray-500 text-[11px]">${c.usage_count}</td>
+                <td class="p-4"><span class="px-2.5 py-1 rounded-full font-bold text-[9px] uppercase ${activeClass}">${c.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td class="p-4 text-right space-x-1 whitespace-nowrap">
+                    <button onclick="toggleAdminCoupon(${c.id})" class="bg-gray-600 hover:bg-gray-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">${c.is_active ? 'Disable' : 'Enable'}</button>
+                    <button onclick="deleteAdminCoupon(${c.id})" class="bg-red-600 hover:bg-red-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Delete</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        console.error('Failed to load coupons:', e);
+    }
+}
+
+async function createAdminCoupon() {
+    const token = localStorage.getItem('token');
+    const code = document.getElementById('newCouponCode').value.trim();
+    const discount_type = document.getElementById('newCouponType').value;
+    const discount_value = document.getElementById('newCouponValue').value;
+    const min_order = document.getElementById('newCouponMin').value || '0';
+    if (!code || !discount_value) { alert('Please fill in Code and Discount Value.'); return; }
+    try {
+        const res = await fetch(`${API_URL}/admin/coupons`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ code, discount_type, discount_value, min_order })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast('Coupon created!', 'fa-tag');
+            toggleNewCouponForm();
+            loadAdminCoupons();
+        } else {
+            alert(data.error || 'Failed to create coupon.');
+        }
+    } catch { alert('Server error. Please try again.'); }
+}
+
+async function toggleAdminCoupon(id) {
+    const token = localStorage.getItem('token');
+    try {
+        await fetch(`${API_URL}/admin/coupons/${id}/toggle`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}` } });
+        loadAdminCoupons();
+    } catch { alert('Failed to toggle coupon.'); }
+}
+
+async function deleteAdminCoupon(id) {
+    if (!confirm('Delete this coupon permanently?')) return;
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`${API_URL}/admin/coupons/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) { showToast('Coupon deleted', 'fa-trash'); loadAdminCoupons(); }
+    } catch { alert('Failed to delete coupon.'); }
 }
 
 window.onload = () => {
