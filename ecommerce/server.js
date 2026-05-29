@@ -17,7 +17,7 @@ app.use(express.static(path.join(__dirname)));
 // ─── PostgreSQL Pool ───────────────────────────────────────────────────────────
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: false
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 // ─── Email Transporter (Gmail SMTP) ───────────────────────────────────────────
@@ -328,7 +328,7 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
 
 app.put('/api/admin/orders/:id', authenticateToken, requireAdmin, async (req, res) => {
     const { status } = req.body;
-    if (!['Pending', 'Shipped', 'Delivered'].includes(status))
+    if (!['Pending', 'Shipped', 'Delivered', 'Cancelled'].includes(status))
         return res.status(400).json({ error: "Invalid status." });
     try {
         await pool.query(`UPDATE orders SET status = $1 WHERE id = $2`, [status, req.params.id]);
