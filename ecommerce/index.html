@@ -382,6 +382,10 @@
                             <span>SHIPPING</span>
                             <span class="text-black">Rs. 250</span>
                         </div>
+                        <div id="discountRow" class="hidden flex justify-between items-center text-green-600">
+                            <span class="font-bold">DISCOUNT</span>
+                            <span id="chkDiscount" class="font-bold">- Rs. 0</span>
+                        </div>
                         <div class="flex justify-between items-center text-[13px] md:text-sm text-black pt-3 border-t border-gray-200 mt-2">
                             <span class="text-sm md:text-base">TOTAL AMOUNT</span>
                             <span id="chkTotal" class="text-lg md:text-xl">Rs. 0</span>
@@ -401,6 +405,18 @@
                         </label>
                     </div>
                 </div>
+                <!-- Promo Code -->
+                <div class="pt-2">
+                    <p class="text-[11px] font-bold text-gray-400 mb-3 tracking-widest">PROMO CODE</p>
+                    <div class="flex gap-2 items-center">
+                        <input type="text" id="couponInput" placeholder="ENTER CODE" maxlength="20"
+                            class="flex-1 border-b p-3 text-sm outline-none focus:border-black cursor-text bg-transparent font-bold tracking-widest uppercase placeholder:font-normal placeholder:text-gray-300">
+                        <button type="button" onclick="applyCoupon()" id="applyCouponBtn"
+                            class="border border-black px-4 py-3 text-[11px] font-bold tracking-widest hover:bg-black hover:text-white transition cursor-pointer whitespace-nowrap">APPLY</button>
+                    </div>
+                    <div id="couponMsg" class="hidden mt-2 text-[11px] font-bold tracking-wider"></div>
+                </div>
+
                 <div class="pt-6 md:pt-8 space-y-3 pb-8">
                     <button type="submit" class="w-full bg-black text-white py-3.5 md:py-4 font-bold text-[11px] md:text-sm tracking-widest hover:bg-gray-800 transition cursor-pointer">PLACE ORDER</button>
                     <button type="button" onclick="hideCheckout()" class="w-full border border-black bg-white text-black py-3.5 md:py-4 font-bold text-[11px] md:text-sm tracking-widest hover:bg-gray-50 transition cursor-pointer">CANCEL</button>
@@ -423,7 +439,9 @@
         <div id="orderSuccessState" class="text-center px-6 max-w-md hidden">
             <i class="fa-regular fa-circle-check text-[80px] text-green-500 mb-8"></i>
             <h2 class="logo-font text-3xl md:text-4xl font-bold tracking-widest mb-4">ORDER PLACED</h2>
-            <p class="text-gray-500 mb-10 text-[13px] md:text-sm font-medium">Your order has been placed successfully. We will contact you shortly for confirmation.</p>
+            <p id="successOrderId" class="text-[11px] font-bold tracking-widest text-gray-400 mb-2">#---</p>
+            <p class="text-gray-500 mb-3 text-[13px] md:text-sm font-medium">Your order has been placed successfully!</p>
+            <p id="successEmailNote" class="text-gray-400 mb-10 text-[11px] font-medium tracking-wider">A confirmation email has been sent to your inbox.</p>
             <button onclick="shopAgain()" class="w-full bg-black text-white py-4 font-bold text-[11px] md:text-sm tracking-widest uppercase hover:bg-gray-800 transition cursor-pointer">Shop Again</button>
         </div>
     </section>
@@ -505,6 +523,52 @@
                             </tr>
                         </thead>
                         <tbody id="adminOrdersTable" class="text-xs divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Coupon Manager -->
+            <div class="bg-white rounded shadow-sm border border-gray-100 overflow-hidden mt-6">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                    <h3 class="font-bold tracking-widest text-xs uppercase text-gray-700"><i class="fa-solid fa-tag mr-2"></i>Promo Code Manager</h3>
+                    <button onclick="toggleNewCouponForm()" class="text-[10px] font-bold text-black border border-black px-3 py-1.5 rounded tracking-widest hover:bg-black hover:text-white transition uppercase">
+                        <i class="fa-solid fa-plus mr-1"></i> New Code
+                    </button>
+                </div>
+                <div id="newCouponForm" class="hidden p-5 border-b border-gray-100 bg-yellow-50/60">
+                    <p class="text-[10px] font-bold tracking-widest text-gray-400 uppercase mb-3">Create Promo Code</p>
+                    <div class="flex flex-wrap gap-3 mb-3">
+                        <input type="text" id="newCouponCode" placeholder="CODE (e.g. SAVE15)" maxlength="20"
+                            class="border p-2.5 text-sm font-mono uppercase tracking-widest outline-none focus:border-black w-full md:w-auto md:flex-1">
+                        <select id="newCouponType" class="border p-2.5 text-sm outline-none focus:border-black w-full md:w-auto">
+                            <option value="percent">Percent (%) Discount</option>
+                            <option value="fixed">Fixed (Rs.) Discount</option>
+                        </select>
+                        <input type="number" id="newCouponValue" placeholder="Value (e.g. 15)" min="1"
+                            class="border p-2.5 text-sm outline-none focus:border-black w-full md:w-28">
+                        <input type="number" id="newCouponMin" placeholder="Min Order (0 = any)" min="0"
+                            class="border p-2.5 text-sm outline-none focus:border-black w-full md:w-36">
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="createAdminCoupon()" class="bg-black text-white px-5 py-2 text-xs font-bold tracking-widest uppercase hover:bg-gray-800 transition cursor-pointer">Create</button>
+                        <button onclick="toggleNewCouponForm()" class="border border-gray-300 text-gray-500 px-5 py-2 text-xs font-bold tracking-widest uppercase hover:bg-gray-50 transition cursor-pointer">Cancel</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-500 text-[10px] font-bold tracking-widest uppercase border-b border-gray-200">
+                                <th class="p-4">Code</th>
+                                <th class="p-4">Discount</th>
+                                <th class="p-4">Min Order</th>
+                                <th class="p-4">Uses</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminCouponsTable" class="text-xs divide-y divide-gray-100">
+                            <tr><td colspan="6" class="p-6 text-center text-gray-400 text-xs">Loading...</td></tr>
+                        </tbody>
                     </table>
                 </div>
             </div>
