@@ -1391,7 +1391,23 @@ async function loadAdminDashboard() {
                      </div>`
                 ).join('');
 
-                const statusColor = order.status === 'Pending' ? 'text-yellow-600 bg-yellow-50' : (order.status === 'Shipped' ? 'text-blue-600 bg-blue-50' : 'text-green-600 bg-green-50');
+                const statusColor = order.status === 'Pending' ? 'text-yellow-600 bg-yellow-50'
+                    : order.status === 'Shipped' ? 'text-blue-600 bg-blue-50'
+                    : order.status === 'Cancelled' ? 'text-red-600 bg-red-50'
+                    : 'text-green-600 bg-green-50';
+
+                const actionBtns = order.status === 'Pending' ? `
+                    <button onclick="updateOrderStatus(${order.id}, 'Shipped')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Ship</button>
+                    <button onclick="updateOrderStatus(${order.id}, 'Delivered')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Deliver</button>
+                    <button onclick="updateOrderStatus(${order.id}, 'Cancelled')" class="bg-red-500 hover:bg-red-600 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Cancel</button>`
+                    : order.status === 'Shipped' ? `
+                    <button onclick="updateOrderStatus(${order.id}, 'Delivered')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Mark Delivered</button>`
+                    : order.status === 'Cancelled' ? `
+                    <button onclick="updateOrderStatus(${order.id}, 'Pending')" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Re-Open</button>`
+                    : `<span class="text-[9px] text-gray-300 font-bold uppercase">✓ Completed</span>`;
+
+                const couponBadge = order.coupon_code ? `<span class="ml-2 text-[9px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded font-bold">${order.coupon_code}</span>` : '';
+                const totalDisplay = order.discount > 0 ? `Rs. ${order.total} <span class="text-[10px] text-green-600 font-bold">(-${order.discount})</span>` : `Rs. ${order.total}`;
 
                 return `
                 <tr class="hover:bg-gray-50 transition border-b border-gray-100">
@@ -1403,14 +1419,11 @@ async function loadAdminDashboard() {
                         <div class="text-[9px] text-gray-300 font-bold mt-1 uppercase">${date}</div>
                     </td>
                     <td class="p-4 max-w-[300px]">${itemsListHtml}</td>
-                    <td class="p-4 font-bold text-black text-[13px]">Rs. ${order.total}</td>
+                    <td class="p-4 font-bold text-black text-[13px]">${totalDisplay}${couponBadge}</td>
                     <td class="p-4">
                         <span class="px-2.5 py-1 rounded-full font-bold text-[9px] uppercase ${statusColor}">${order.status}</span>
                     </td>
-                    <td class="p-4 text-right space-x-1 whitespace-nowrap">
-                        <button onclick="updateOrderStatus(${order.id}, 'Shipped')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Ship</button>
-                        <button onclick="updateOrderStatus(${order.id}, 'Delivered')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Deliver</button>
-                    </td>
+                    <td class="p-4 text-right space-x-1 whitespace-nowrap">${actionBtns}</td>
                 </tr>`;
             }).join('');
         }

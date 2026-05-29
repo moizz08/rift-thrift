@@ -1,0 +1,17 @@
+kind = "api"
+  previewPath = "/"
+  title = "Rift Thrift"
+  version = "1.0.0"
+  id = "3B4_FFSkEVBkAeYMFRJ2e"
+
+  [[services]]
+  localPort = 3000
+  name = "Rift Thrift Server"
+  paths = ["/"]
+
+  [services.production.run]
+  args = ["node", "/home/runner/workspace/ecommerce/server.js"]
+
+  [services.production.run.env]
+  NODE_ENV = "production"
+  
