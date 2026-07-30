@@ -123,15 +123,18 @@ function render() {
         grid.innerHTML = displayItems.map(p => {
             const isWished = wishlist.includes(p.id);
             const displayPrice = p.sale_price ? `<span class="line-through text-gray-400 text-[11px] mr-1">Rs. ${p.price}</span><span class="text-red-500 font-bold text-[14px] md:text-[15px]">Rs. ${p.sale_price}</span>` : `<span class="text-[13px] md:text-[15px] font-bold text-black">Rs. ${p.price}</span>`;
-            const badge = p.is_flash_sale ? `<div class="sale-badge">SALE</div>` : (p.is_new ? `<div class="new-badge">NEW</div>` : '');
-            const bsBadge = p.is_best_seller ? `<div class="bestseller-badge">★ BEST</div>` : '';
+            const badges = [
+                p.is_flash_sale ? `<span class="sale-badge">SALE</span>` : '',
+                p.is_new ? `<span class="new-badge">NEW</span>` : '',
+                p.is_best_seller ? `<span class="bestseller-badge">★ BEST</span>` : '',
+            ].filter(Boolean).join('');
             return `
             <div class="product-card group relative flex flex-col h-full">
                 <div class="aspect-[3/4] bg-gray-100 mb-2 md:mb-3 relative overflow-hidden border cursor-pointer flex-shrink-0"
                     onclick="handleCardClick(event, ${p.id})"
                     ontouchstart="cardTouchStart(event, ${p.id})"
                     ontouchend="cardTouchEnd(event, ${p.id})">
-                    ${badge}${bsBadge}
+                    ${badges ? `<div class="product-badges">${badges}</div>` : ''}
                     <button onclick="event.stopPropagation(); toggleWishlist(${p.id})" class="wish-btn absolute top-2 right-2 z-20 w-8 h-8 flex items-center justify-center bg-white/80 rounded-full shadow hover:scale-110 transition ${isWished ? 'active text-red-500' : 'text-gray-400'}">
                         <i class="fa-${isWished ? 'solid' : 'regular'} fa-heart text-sm"></i>
                     </button>
@@ -318,6 +321,7 @@ function resetHomeLogic(isPop = false) {
     clearAllLayers();
     hideAllSections();
     document.getElementById('homeSection').style.display = 'block';
+    document.getElementById('heroBanner').style.display = '';
     applyFilters(false);
     if (!isPop) updateMainState(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -529,6 +533,7 @@ function showPage(page) {
     const isMenuOpen = !document.getElementById('sidebar').classList.contains('-translate-x-full');
     document.getElementById('homeSection').style.display = 'none';
     document.getElementById('infoSection').classList.remove('hidden-section');
+    document.getElementById('heroBanner').style.display = 'none';
     toggleHeaderBackBtn(false);
     const title = document.getElementById('infoTitle');
     const content = document.getElementById('infoContent');
@@ -543,7 +548,11 @@ function showPage(page) {
         content.innerHTML = `<div class="space-y-4"><div class="flex items-center gap-3"><i class="fa-brands fa-instagram text-lg"></i><div><p class="font-bold text-xs tracking-widest">INSTAGRAM</p><a href="https://www.instagram.com/rift_pk" target="_blank" class="text-blue-600 text-sm">@rift_pk</a></div></div><div class="flex items-center gap-3"><i class="fa-brands fa-whatsapp text-lg text-green-600"></i><div><p class="font-bold text-xs tracking-widest">WHATSAPP / PHONE</p><a href="https://wa.me/923001234567" target="_blank" class="text-blue-600 text-sm">+92 300 1234567</a></div></div><div class="flex items-center gap-3"><i class="fa-solid fa-envelope text-lg"></i><div><p class="font-bold text-xs tracking-widest">EMAIL</p><p class="text-sm">support@riftthrift.pk</p></div></div><div class="flex items-center gap-3"><i class="fa-solid fa-location-dot text-lg"></i><div><p class="font-bold text-xs tracking-widest">ADDRESS</p><p class="text-sm">Karachi, Pakistan</p></div></div></div>`;
     }
     window.scrollTo({ top: 0 });
-    const closeInfo = () => { document.getElementById('infoSection').classList.add('hidden-section'); document.getElementById('homeSection').style.display = 'block'; };
+    const closeInfo = () => {
+        document.getElementById('infoSection').classList.add('hidden-section');
+        document.getElementById('homeSection').style.display = 'block';
+        document.getElementById('heroBanner').style.display = '';
+    };
     if (isMenuOpen) {
         document.getElementById('sidebar').classList.add('-translate-x-full');
         replaceTopAppLayer('info', closeInfo);
@@ -580,6 +589,9 @@ function updateCartUI() {
         </div>`;
         document.getElementById('cartSubtotal').innerText = 'Rs. 0';
         document.getElementById('cartTotal').innerText = 'Rs. 0';
+        document.getElementById('cartShipping').innerText = 'Rs. 250';
+        document.getElementById('shippingProgress').classList.add('hidden');
+        persistCart();
         return;
     }
     list.innerHTML = cartItems.map((item, index) => {
@@ -606,7 +618,26 @@ function updateCartUI() {
         </div>`;
     }).join('');
     document.getElementById('cartSubtotal').innerText = `Rs. ${total.toLocaleString()}`;
-    document.getElementById('cartTotal').innerText = `Rs. ${(total + 250).toLocaleString()}`;
+    const shipping = getShippingCost(total);
+    document.getElementById('cartShipping').innerText = shipping === 0 ? 'FREE' : `Rs. ${shipping}`;
+    document.getElementById('cartTotal').innerText = `Rs. ${(total + shipping).toLocaleString()}`;
+    const progress = document.getElementById('shippingProgress');
+    if (total < 2000) {
+        progress.textContent = `Add Rs. ${(2000 - total).toLocaleString()} more for free shipping.`;
+        progress.classList.remove('hidden');
+    } else {
+        progress.textContent = 'You qualify for free shipping.';
+        progress.classList.remove('hidden');
+    }
+    persistCart();
+}
+
+function getShippingCost(subtotal) {
+    return subtotal >= 2000 ? 0 : 250;
+}
+
+function persistCart() {
+    localStorage.setItem('rift_cart', JSON.stringify(cartItems));
 }
 
 function addCart(id) {
@@ -963,7 +994,7 @@ function proceedToCheckout(isDirect = false) {
 
     currentCheckoutSubtotal = subtotal;
     document.getElementById('chkSubtotal').innerText = `Rs. ${subtotal.toLocaleString()}`;
-    document.getElementById('chkTotal').innerText = `Rs. ${(subtotal + 250).toLocaleString()}`;
+    document.getElementById('chkTotal').innerText = `Rs. ${(subtotal + getShippingCost(subtotal)).toLocaleString()}`;
 
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
@@ -1018,7 +1049,7 @@ function showCouponMsg(text, type) {
 
 function updateCheckoutTotal() {
     const discount = appliedCoupon ? appliedCoupon.discount_amount : 0;
-    const total = currentCheckoutSubtotal + 250 - discount;
+    const total = currentCheckoutSubtotal + getShippingCost(currentCheckoutSubtotal) - discount;
     const discountRow = document.getElementById('discountRow');
     if (discount > 0 && discountRow) {
         discountRow.classList.remove('hidden'); discountRow.classList.add('flex');
@@ -1042,7 +1073,7 @@ async function finishOrder(e) {
     const subtotal = itemsToProcess.reduce((sum, item) => sum + ((item.sale_price || item.price) * item.quantity), 0);
     const discount = appliedCoupon ? appliedCoupon.discount_amount : 0;
     const orderPayload = {
-        name, email, phone, address, subtotal, shipping: 250, discount, total: subtotal + 250 - discount,
+        name, email, phone, address, subtotal, shipping: getShippingCost(subtotal), discount, total: subtotal + getShippingCost(subtotal) - discount,
         coupon_code: appliedCoupon ? appliedCoupon.code : null,
         items: itemsToProcess.map(item => ({ product_id: item.id, product_name: item.name, size: item.cartSize, color: item.color, price: item.sale_price || item.price, quantity: item.quantity, image: item.images[0] }))
     };
@@ -1505,6 +1536,13 @@ async function loadAdminCustomers() {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 window.onload = () => {
+    try {
+        const savedCart = JSON.parse(localStorage.getItem('rift_cart') || '[]');
+        cartItems = Array.isArray(savedCart) ? savedCart.filter(item => item && item.id && item.quantity > 0) : [];
+    } catch {
+        cartItems = [];
+        localStorage.removeItem('rift_cart');
+    }
     updateCartUI();
     syncUserUI();
     updateWishBadge();

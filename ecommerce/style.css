@@ -148,9 +148,18 @@ body { font-family: 'Jost', sans-serif; scroll-behavior: smooth; overflow-x: hid
     letter-spacing: 1.5px; padding: 3px 8px; text-transform: uppercase;
 }
 .bestseller-badge {
-    position: absolute; top: 8px; right: 8px; z-index: 20;
+    position: absolute; top: 8px; left: 8px; z-index: 20;
     background: rgba(0,0,0,0.75); color: #fff; font-size: 8px; font-weight: 800;
     letter-spacing: 1.5px; padding: 3px 7px; text-transform: uppercase;
+}
+.product-badges {
+    position: absolute; top: 8px; left: 8px; z-index: 20;
+    display: flex; align-items: center; gap: 5px; flex-wrap: wrap; max-width: calc(100% - 56px);
+}
+.product-badges .sale-badge,
+.product-badges .new-badge,
+.product-badges .bestseller-badge {
+    position: static;
 }
 
 /* ─── Size button ─── */
@@ -233,3 +242,12 @@ input:focus, textarea:focus, select:focus { outline: none; }
 
 /* ─── No-click effect override ─── */
 .no-click-effect { -webkit-tap-highlight-color: transparent; user-select: none; }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}
