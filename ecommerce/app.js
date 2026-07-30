@@ -1,17 +1,33 @@
-let appLayers = []; 
-let currentBaseCategory = 'Featured'; 
-let currentFilterOption = 'Featured'; 
-let currentSubCategory = 'All'; 
+// ─── State ─────────────────────────────────────────────────────────────────────
+const API_URL = window.location.origin + '/api';
+let products = [];
+let appLayers = [];
+let currentBaseCategory = 'Featured';
+let currentFilterOption = 'Featured';
+let currentSubCategory = 'All';
+let pendingPriceFilter = 'all';
+let currentPriceFilter = 'all';
 let currentPage = 1;
+let filteredData = [];
+const perPage = 8;
+let cartItems = [];
+let wishlist = JSON.parse(localStorage.getItem('rift_wishlist') || '[]');
+let cardImageIndex = {};
+let selectedSize = 'M';
+let appliedCoupon = null;
+let currentCheckoutSubtotal = 0;
+let directBuyItem = null;
+let toastTimeout;
+let savedHomeScroll = 0;
+let activeProductImages = [];
+let currentLightboxIndex = 0;
+let allAdminOrders = [];
 
-// API Connection String works relative to current domain
-const API_URL = window.location.origin + "/api";
-
+// ─── App Layer / History ──────────────────────────────────────────────────────
 function pushAppLayer(id, closeFunc) {
     appLayers.push({ id, closeFunc });
     history.pushState({ layerId: id }, '', '#' + id);
 }
-
 function replaceTopAppLayer(id, closeFunc) {
     if (appLayers.length > 0) {
         appLayers[appLayers.length - 1] = { id, closeFunc };
@@ -20,147 +36,144 @@ function replaceTopAppLayer(id, closeFunc) {
         pushAppLayer(id, closeFunc);
     }
 }
-
-function goBack() {
-    history.back(); 
-}
-
+function goBack() { history.back(); }
 function clearAllLayers() {
-    while(appLayers.length > 0) {
+    while (appLayers.length > 0) {
         const layer = appLayers.pop();
-        layer.closeFunc(true); 
-    }
-}
-
-function updateMainState(push = true) {
-    const query = document.getElementById('desktopSearchInput').value || document.getElementById('mobileSearchInput').value;
-    const stateObj = { 
-        view: 'home', 
-        cat: currentBaseCategory, 
-        page: currentPage, 
-        search: query 
-    };
-    if (push) {
-        history.pushState(stateObj, '', '');
-    } else {
-        history.replaceState(stateObj, '', '');
+        layer.closeFunc(true);
     }
 }
 
 window.addEventListener('popstate', (e) => {
     const state = e.state;
-
     if (appLayers.length > 0) {
         const layer = appLayers.pop();
-        layer.closeFunc(true); 
+        layer.closeFunc(true);
         return;
     }
-
     if (state && state.view === 'home') {
         currentBaseCategory = state.cat || 'Featured';
         currentPage = state.page || 1;
-
         const query = state.search || '';
         document.getElementById('desktopSearchInput').value = query;
         document.getElementById('mobileSearchInput').value = query;
-
-        document.getElementById('infoSection').classList.add('hidden-section');
-        document.getElementById('detailSection').classList.add('hidden-section');
-        document.getElementById('checkoutSection').classList.add('hidden-section');
-        document.getElementById('successSection').classList.add('hidden-section');
-        document.getElementById('adminSection').classList.add('hidden-section');
+        hideAllSections();
         document.getElementById('homeSection').style.display = 'block';
-
         updateActiveMenu();
-        applyFilters(false); 
+        applyFilters(false);
     } else {
         resetHomeLogic(true);
     }
 });
 
-const products = [
-    { id: 1, gender: 'Men', cat: 'Denim', isBestSeller: true, isNew: false, isFlashSale: false, saleType: '', name: 'Classic Indigo Denim', price: 1450, color: 'Dark Blue', colorHex: '#1e3a8a', desc: 'A timeless classic indigo denim tailored for a perfect fit.', images:['https://i.ibb.co/FtvPG7V/1777643485852-2.jpg', 'https://i.ibb.co/Rk2YHYHJ/1777643485852-3.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 2, gender: 'Men', cat: 'Cloud Baggy', isBestSeller: true, isNew: true, isFlashSale: false, saleType: '', name: 'Baggy Cloud Grey', price: 1750, color: 'Grey', colorHex: '#9ca3af', desc: 'Experience ultimate comfort with our signature baggy fit.', images:['https://i.ibb.co/Rpf9ry0V/1777643485852-4.jpg', 'https://i.ibb.co/RGdV978P/1777643485852-5.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 3, gender: 'Men', cat: 'Skinny', isBestSeller: false, isNew: true, isFlashSale: true, saleType: 'Flash Sale', name: 'Midnight Skinny Fit', price: 1300, color: 'Black', colorHex: '#000000', desc: 'Sleek midnight black skinny jeans featuring stretchable fabric.', images:['https://i.ibb.co/HpYF7xZv/1777646614740-4.jpg', 'https://i.ibb.co/4LHSsFB/1777646614740-5.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 4, gender: 'Men', cat: 'Shorts', isBestSeller: false, isNew: false, isFlashSale: true, saleType: 'Flash Sale', name: 'Cargo Summer Shorts', price: 850, color: 'Khaki', colorHex: '#d2b48c', desc: 'Breathable cargo shorts equipped with multi-pocket utility.', images:['https://i.ibb.co/1t3fGpSY/1777646614740-2.jpg', 'https://i.ibb.co/JTpwXVk/1777646614740-3.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 5, gender: 'Women', cat: 'Denim', isBestSeller: true, isNew: false, isFlashSale: false, saleType: '', name: 'High Waist Mom Denim', price: 1600, color: 'Light Blue', colorHex: '#93c5fd', desc: 'Vintage-inspired high waist mom jeans offering a flattering silhouette.', images:['https://i.ibb.co/1trshmtP/1777644849044-3.jpg', 'https://i.ibb.co/mWsy1Yw/1777644849044-4.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 6, gender: 'Women', cat: 'Cloud Baggy', isBestSeller: true, isNew: true, isFlashSale: true, saleType: 'Flash Sale', name: 'Women Cloud Baggy', price: 1850, color: 'Beige', colorHex: '#f5f5dc', desc: 'Our famous cloud baggy jeans, effortlessly chic.', images:['https://i.ibb.co/FLmBc1ht/1777644849044-5.jpg', 'https://i.ibb.co/847fZcVZ/1777644849044-2.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 7, gender: 'Women', cat: 'Skinny', isBestSeller: false, isNew: true, isFlashSale: false, saleType: '', name: 'Stretch Skinny Black', price: 1400, color: 'Black', colorHex: '#000000', desc: 'Form-fitting black stretch skinny jeans to contour your shape perfectly.', images:['https://i.ibb.co/C32RXN4W/1777646811161-2.jpg', 'https://i.ibb.co/0RqpkmkM/1777646811161-3.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 8, gender: 'Women', cat: 'Shorts', isBestSeller: false, isNew: false, isFlashSale: true, saleType: 'Flash Sale', name: 'Vintage Denim Shorts', price: 950, color: 'Blue', colorHex: '#3b82f6', desc: 'Classic cut-off denim shorts boasting frayed edges.', images:['https://i.ibb.co/s4vQvY4/1777646811161-4.jpg', 'https://i.ibb.co/qFy9tvhD/1777646811161-6.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 9, gender: 'Kids', cat: 'Denim', isBestSeller: true, isNew: false, isFlashSale: false, saleType: '', name: 'Junior Rugged Denim', price: 1100, color: 'Blue', colorHex: '#2563eb', desc: 'Durable and play-ready rugged denim for active kids.', images:['https://i.ibb.co/ycnKD4KZ/Chat-GPT-Image-May-1-2026-08-41-38-PM-2.jpg', 'https://i.ibb.co/zHj3Cx9z/Chat-GPT-Image-May-1-2026-08-41-38-PM-3.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 10, gender: 'Kids', cat: 'Baggy', isBestSeller: true, isNew: true, isFlashSale: true, saleType: 'Flash Sale', name: 'Kids Baggy Cloud', price: 1200, color: 'Blue Wash', colorHex: '#60a5fa', desc: 'A miniature version of our famous baggy cloud jeans.', images:['https://i.ibb.co/LXyntFQG/Chat-GPT-Image-May-1-2026-08-41-38-PM-4.jpg', 'https://i.ibb.co/cSRHFzVZ/Chat-GPT-Image-May-1-2026-08-41-38-PM-5.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 11, gender: 'Kids', cat: 'Skinny', isBestSeller: false, isNew: true, isFlashSale: false, saleType: '', name: 'Junior Skinny Fit', price: 900, color: 'Black', colorHex: '#111827', desc: 'Trendy skinny jeans for kids featuring an adjustable waist.', images:['https://i.ibb.co/MyGJ3Drv/Chat-GPT-Image-May-1-2026-08-47-21-PM-4.jpg', 'https://i.ibb.co/dsQCKQ16/Chat-GPT-Image-May-1-2026-08-47-21-PM-5.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 12, gender: 'Kids', cat: 'Shorts', isBestSeller: false, isNew: false, isFlashSale: true, saleType: 'Flash Sale', name: 'Active Play Shorts', price: 650, color: 'Olive', colorHex: '#4d7c0f', desc: 'Lightweight olive shorts designed specifically for playground fun.', images:['https://i.ibb.co/mPbHCLD/Chat-GPT-Image-May-1-2026-08-47-21-PM-2.jpg', 'https://i.ibb.co/mQVQNNb/Chat-GPT-Image-May-1-2026-08-47-21-PM-3.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 13, gender: 'Men', cat: 'Shorts', isBestSeller: true, isNew: false, isFlashSale: true, saleType: 'Flash Sale', name: 'Summer Breeze Shorts', price: 500, color: 'Yellow', colorHex: '#facc15', desc: 'Brighten up your seasonal wardrobe with these vibrant yellow shorts.', images:['https://i.ibb.co/VWwns5Kx/1777647507787-2.jpg', 'https://i.ibb.co/N6nMh35N/1777647507787-3.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 14, gender: 'Women', cat: 'Baggy', isBestSeller: false, isNew: true, isFlashSale: false, saleType: '', name: 'Summer Linen Pant', price: 800, color: 'White', colorHex: '#ffffff', desc: 'Airy and elegant white linen pants for warm days.', images:['https://i.ibb.co/x8PhP2dv/1777647507787-4.jpg', 'https://i.ibb.co/qvH6rBy/1777647507787-5.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 15, gender: 'Men', cat: 'Denim', isBestSeller: true, isNew: false, isFlashSale: false, saleType: '', name: 'Thick Winter Denim', price: 900, color: 'Black Wash', colorHex: '#374151', desc: 'Heavyweight black wash denim perfectly crafted to keep you well insulated.', images:['https://i.ibb.co/HDYbvkhb/1777647855994-2.jpg', 'https://i.ibb.co/fGrxw8kk/1777647855994-3.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] },
-    { id: 16, gender: 'Women', cat: 'Denim', isBestSeller: true, isNew: true, isFlashSale: true, saleType: 'Flash Sale', name: 'Fleece Lined Jeans', price: 950, color: 'Dark Blue', colorHex: '#1e3a8a', desc: 'Stay warm without sacrificing any style. Cozy fleece interior lining.', images:['https://i.ibb.co/TDm4FXGk/1777647855994-4.jpg', 'https://i.ibb.co/bg5BJTJQ/1777647855994-5.jpg', 'https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg'] }
-];
+function hideAllSections() {
+    ['infoSection','detailSection','checkoutSection','successSection','adminSection','myOrdersSection','wishlistSection'].forEach(id => {
+        document.getElementById(id).classList.add('hidden-section');
+    });
+}
 
-const perPage = 8;
-let cartItems = [];
-let filteredData = [...products];
-let cardImageIndex = {};
-let appliedCoupon = null;
-let currentCheckoutSubtotal = 0;
+function updateMainState(push = true) {
+    const query = document.getElementById('desktopSearchInput').value || document.getElementById('mobileSearchInput').value;
+    const stateObj = { view: 'home', cat: currentBaseCategory, page: currentPage, search: query };
+    if (push) history.pushState(stateObj, '', '');
+    else history.replaceState(stateObj, '', '');
+}
 
+// ─── Scroll to Top ────────────────────────────────────────────────────────────
+window.addEventListener('scroll', () => {
+    const btn = document.getElementById('scrollTopBtn');
+    if (window.scrollY > 400) btn.classList.add('show');
+    else btn.classList.remove('show');
+});
+
+// ─── Products: Load from API ──────────────────────────────────────────────────
+async function loadProducts() {
+    try {
+        const res = await fetch(`${API_URL}/products`);
+        if (!res.ok) throw new Error('Failed');
+        products = await res.json();
+        document.getElementById('productSkeleton').style.display = 'none';
+        document.getElementById('productGrid').classList.remove('hidden');
+        filteredData = [...products];
+        applyFilters(false);
+    } catch (e) {
+        document.getElementById('productSkeleton').innerHTML = '<div class="col-span-2 md:col-span-4 text-center py-16"><i class="fa-solid fa-wifi-slash text-4xl text-gray-300 mb-4"></i><p class="text-gray-500 font-bold tracking-widest uppercase text-xs">Connection error. Please refresh.</p><button onclick="location.reload()" class="mt-4 bg-black text-white px-6 py-2 text-xs font-bold tracking-widest uppercase cursor-pointer hover:bg-gray-800 transition">RETRY</button></div>';
+    }
+}
+
+// ─── Render Products ──────────────────────────────────────────────────────────
 function render() {
-    cardImageIndex = {}; 
+    cardImageIndex = {};
     const grid = document.getElementById('productGrid');
     const totalPages = Math.ceil(filteredData.length / perPage);
     const start = (currentPage - 1) * perPage;
-    const end = start + perPage;
-    const displayItems = filteredData.slice(start, end);
+    const displayItems = filteredData.slice(start, start + perPage);
 
     grid.classList.remove('grid-animate');
-    void grid.offsetWidth; 
+    void grid.offsetWidth;
     grid.classList.add('grid-animate');
 
     if (displayItems.length === 0) {
-        grid.innerHTML = `<div class="col-span-2 md:col-span-4 text-center py-16"><i class="fa-solid fa-box-open text-4xl text-gray-300 mb-4"></i><p class="text-gray-500 font-medium tracking-widest uppercase">No products found.</p></div>`;
+        grid.innerHTML = `<div class="col-span-2 md:col-span-4 text-center py-20">
+            <i class="fa-solid fa-box-open text-5xl text-gray-200 mb-4"></i>
+            <p class="text-gray-400 font-bold tracking-widest uppercase text-xs">No products found.</p>
+            <button onclick="clearFiltersFromPage()" class="mt-4 border border-black px-6 py-2 text-xs font-bold tracking-widest uppercase cursor-pointer hover:bg-black hover:text-white transition">CLEAR FILTERS</button>
+        </div>`;
     } else {
-        grid.innerHTML = displayItems.map(p => `
+        grid.innerHTML = displayItems.map(p => {
+            const isWished = wishlist.includes(p.id);
+            const displayPrice = p.sale_price ? `<span class="line-through text-gray-400 text-[11px] mr-1">Rs. ${p.price}</span><span class="text-red-500 font-bold text-[14px] md:text-[15px]">Rs. ${p.sale_price}</span>` : `<span class="text-[13px] md:text-[15px] font-bold text-black">Rs. ${p.price}</span>`;
+            const badge = p.is_flash_sale ? `<div class="sale-badge">SALE</div>` : (p.is_new ? `<div class="new-badge">NEW</div>` : '');
+            const bsBadge = p.is_best_seller ? `<div class="bestseller-badge">★ BEST</div>` : '';
+            return `
             <div class="product-card group relative flex flex-col h-full">
-                <div class="aspect-[3/4] bg-gray-100 mb-2 md:mb-3 relative flex items-center justify-center text-[10px] text-gray-300 font-bold uppercase overflow-hidden border cursor-pointer flex-shrink-0"
+                <div class="aspect-[3/4] bg-gray-100 mb-2 md:mb-3 relative overflow-hidden border cursor-pointer flex-shrink-0"
                     onclick="handleCardClick(event, ${p.id})"
                     ontouchstart="cardTouchStart(event, ${p.id})"
                     ontouchend="cardTouchEnd(event, ${p.id})">
-                    <div class="absolute inset-0 skeleton-loader"></div>
-                    <img id="card-img-${p.id}" src="${p.images[0]}" class="absolute inset-0 w-full h-full object-cover transition-all duration-700 group-hover:scale-110 opacity-0 relative z-10" onload="this.classList.remove('opacity-0'); this.previousElementSibling.style.display='none';" onerror="this.style.display='none'">
-
-                    <div class="absolute inset-0 bg-black/0 transition-colors duration-500 group-hover:bg-black/30 z-10"></div>
-
+                    ${badge}${bsBadge}
+                    <button onclick="event.stopPropagation(); toggleWishlist(${p.id})" class="wish-btn absolute top-2 right-2 z-20 w-8 h-8 flex items-center justify-center bg-white/80 rounded-full shadow hover:scale-110 transition ${isWished ? 'active text-red-500' : 'text-gray-400'}">
+                        <i class="fa-${isWished ? 'solid' : 'regular'} fa-heart text-sm"></i>
+                    </button>
+                    <div class="absolute inset-0 skeleton-loader z-0"></div>
+                    <img id="card-img-${p.id}" src="${p.images[0] || ''}" class="absolute inset-0 w-full h-full object-cover transition-all duration-700 group-hover:scale-110 opacity-0 z-10 relative" onload="this.classList.remove('opacity-0'); this.previousElementSibling.style.display='none';" onerror="this.style.display='none'">
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-500 z-10"></div>
                     <div id="card-dots-${p.id}" class="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-20 opacity-0 transition-opacity duration-300">
-                        ${p.images.map((_, i) => `<div class="card-dot-${p.id} w-1.5 h-1.5 rounded-full ${i === 0 ? 'bg-white' : 'bg-white/50'} transition-all duration-200"></div>`).join('')}
+                        ${p.images.map((_, i) => `<div class="card-dot-${p.id} w-1.5 h-1.5 rounded-full ${i === 0 ? 'bg-white' : 'bg-white/50'} transition-all"></div>`).join('')}
                     </div>
-
-                    <div class="absolute inset-0 hidden md:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-500 z-20">
-                        <button onclick="event.stopPropagation(); showDetail(${p.id})" class="bg-white text-black px-3 py-2 rounded shadow-lg font-bold tracking-widest text-[11px] hover:bg-black hover:text-white transition-colors">VIEW</button>
-                        <button onclick="event.stopPropagation(); addCart(${p.id});" class="bg-white text-black px-3 py-2 rounded shadow-lg font-bold tracking-widest text-[11px] hover:bg-black hover:text-white transition-colors"><i class="fa-solid fa-cart-plus text-sm"></i></button>
+                    <div class="absolute inset-0 hidden md:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-400 z-20">
+                        <button onclick="event.stopPropagation(); showDetail(${p.id})" class="bg-white text-black px-3 py-2 font-bold tracking-widest text-[10px] hover:bg-black hover:text-white transition shadow-lg rounded-sm">VIEW</button>
+                        <button onclick="event.stopPropagation(); addCart(${p.id});" class="bg-white text-black px-3 py-2 font-bold tracking-widest text-[10px] hover:bg-black hover:text-white transition shadow-lg rounded-sm"><i class="fa-solid fa-cart-plus"></i></button>
                     </div>
                 </div>
-                <div class="text-center px-1 md:px-2 cursor-pointer flex-1 flex flex-col justify-between" onclick="showDetail(${p.id})">
+                <div class="text-center px-1 cursor-pointer flex-1 flex flex-col justify-between" onclick="showDetail(${p.id})">
                     <div>
-                        <p class="text-[9px] md:text-[11px] font-bold text-gray-500 tracking-widest uppercase mb-0.5 md:mb-1">${p.saleType || (p.gender + ' / ' + p.cat)}</p>
-                        <h3 class="text-[12px] md:text-sm font-bold uppercase mb-0.5 md:mb-1 truncate leading-tight">${p.name}</h3>
-                        <p class="text-[13px] md:text-[15px] font-bold text-black mb-0 md:mb-1">Rs. ${p.price}</p>
+                        <p class="text-[9px] md:text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-0.5">${p.sale_type || (p.gender + ' / ' + p.category)}</p>
+                        <h3 class="text-[12px] md:text-sm font-bold uppercase mb-1 truncate leading-tight">${p.name}</h3>
+                        <div class="mb-1">${displayPrice}</div>
                     </div>
-                    <button onclick="event.stopPropagation(); addCart(${p.id});" class="md:hidden w-full bg-black text-white text-[10px] py-2.5 mt-2.5 font-bold tracking-[0.2em] uppercase hover:bg-gray-800 active:scale-95 transition-all shadow-sm rounded-sm cursor-pointer flex items-center justify-center gap-1.5">
+                    <button onclick="event.stopPropagation(); addCart(${p.id});" class="md:hidden w-full bg-black text-white text-[10px] py-2.5 mt-2 font-bold tracking-[0.2em] uppercase hover:bg-gray-800 active:scale-95 transition-all shadow-sm rounded-sm cursor-pointer flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-bag-shopping text-[9px]"></i> ADD TO CART
                     </button>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     }
 
-    document.getElementById('pageInfo').innerText = `PAGE ${currentPage} OUT OF ${totalPages || 1}`;
-    document.getElementById('prevBtn').disabled = (currentPage === 1);
-    document.getElementById('nextBtn').disabled = (currentPage === totalPages || totalPages === 0);
-
-    if(totalPages <= 1) document.getElementById('pagination').classList.add('hidden');
-    else document.getElementById('pagination').classList.remove('hidden');
+    const pageInfo = document.getElementById('pageInfo');
+    if (pageInfo) pageInfo.innerText = `PAGE ${currentPage} / ${totalPages || 1}`;
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    if (prevBtn) prevBtn.disabled = (currentPage === 1);
+    if (nextBtn) nextBtn.disabled = (currentPage === totalPages || totalPages === 0);
+    const pagination = document.getElementById('pagination');
+    if (pagination) {
+        if (totalPages <= 1) pagination.classList.add('hidden');
+        else { pagination.classList.remove('hidden'); pagination.classList.add('flex'); }
+    }
 }
 
+// ─── Filters ──────────────────────────────────────────────────────────────────
 function applyFilters(pushHistory = false) {
     const deskInput = document.getElementById('desktopSearchInput').value.toLowerCase();
     const mobInput = document.getElementById('mobileSearchInput').value.toLowerCase();
@@ -168,39 +181,81 @@ function applyFilters(pushHistory = false) {
 
     filteredData = products.filter(p => {
         if (query) {
-            const match = p.name.toLowerCase().includes(query) || 
-                          p.cat.toLowerCase().includes(query) || 
-                          (p.saleType && p.saleType.toLowerCase().includes(query)) ||
-                          (p.gender && p.gender.toLowerCase().includes(query));
-            if (!match) return false;
+            return p.name.toLowerCase().includes(query) ||
+                   p.category.toLowerCase().includes(query) ||
+                   (p.sale_type && p.sale_type.toLowerCase().includes(query)) ||
+                   p.gender.toLowerCase().includes(query);
         } else {
             if (currentBaseCategory !== 'Featured' && p.gender !== currentBaseCategory) return false;
-            if (currentFilterOption === 'Best Seller' && !p.isBestSeller) return false;
-            if (currentFilterOption === 'New Arrivals' && !p.isNew) return false;
-            if (currentFilterOption === 'Flash Sale' && !p.isFlashSale) return false;
+            if (currentFilterOption === 'Best Seller' && !p.is_best_seller) return false;
+            if (currentFilterOption === 'New Arrivals' && !p.is_new) return false;
+            if (currentFilterOption === 'Flash Sale' && !p.is_flash_sale) return false;
             if (currentFilterOption === 'Shop by Category' && currentSubCategory !== 'All') {
-                if (currentSubCategory === 'Skinny Jeans' && p.cat !== 'Skinny') return false; 
-                else if (currentSubCategory !== 'Skinny Jeans' && p.cat !== currentSubCategory) return false;
+                if (currentSubCategory === 'Skinny Jeans' && p.category !== 'Skinny') return false;
+                else if (currentSubCategory !== 'Skinny Jeans' && p.category !== currentSubCategory) return false;
             }
         }
+        // Price filter
+        const effectivePrice = p.sale_price || p.price;
+        if (currentPriceFilter === 'under1000' && effectivePrice >= 1000) return false;
+        if (currentPriceFilter === '1000to1500' && (effectivePrice < 1000 || effectivePrice > 1500)) return false;
+        if (currentPriceFilter === 'above1500' && effectivePrice <= 1500) return false;
         return true;
     });
 
-    if (query) {
-        document.getElementById('catDisplay').innerText = 'SEARCH RESULTS';
-    } else {
-        document.getElementById('catDisplay').innerText = currentBaseCategory.toUpperCase();
-    }
+    const catDisplay = document.getElementById('catDisplay');
+    if (catDisplay) catDisplay.innerText = query ? 'SEARCH RESULTS' : currentBaseCategory.toUpperCase();
 
     render();
-    const isNotDefault = currentBaseCategory !== 'Featured' || currentPage > 1 || query !== '';
-    toggleHeaderBackBtn(isNotDefault);
+    toggleHeaderBackBtn(currentBaseCategory !== 'Featured' || currentPage > 1 || query !== '');
     updateClearFilterBar();
     updateHeroBanner();
+    if (pushHistory) updateMainState(true);
+}
 
-    if (pushHistory) {
-        updateMainState(true);
-    }
+let pendingFilterOption = 'Featured';
+let pendingSubCategory = 'All';
+
+function updateFilterDrawerUI() {
+    document.querySelectorAll('input[name="filterOpt"]').forEach(r => r.checked = (r.value === pendingFilterOption));
+    document.querySelectorAll('input[name="subCatOpt"]').forEach(r => r.checked = (r.value === pendingSubCategory));
+    document.querySelectorAll('input[name="priceOpt"]').forEach(r => r.checked = (r.value === pendingPriceFilter));
+    document.getElementById('subCategorySection').classList.toggle('hidden', pendingFilterOption !== 'Shop by Category');
+}
+
+function setFilterOpt(val) { pendingFilterOption = val; if (val !== 'Shop by Category') pendingSubCategory = 'All'; updateFilterDrawerUI(); }
+function setSubCat(val) { pendingSubCategory = val; updateFilterDrawerUI(); }
+function setPriceFilter(val) { pendingPriceFilter = val; updateFilterDrawerUI(); }
+
+function applyFilterBtn() {
+    currentFilterOption = pendingFilterOption;
+    currentSubCategory = pendingSubCategory;
+    currentPriceFilter = pendingPriceFilter;
+    currentPage = 1;
+    applyFilters(false);
+    updateMainState(false);
+    goBack();
+}
+
+function resetFiltersBtn() {
+    pendingFilterOption = 'Featured'; pendingSubCategory = 'All'; pendingPriceFilter = 'all';
+    updateFilterDrawerUI();
+}
+
+function clearFiltersFromPage() {
+    pendingFilterOption = 'Featured'; pendingSubCategory = 'All'; pendingPriceFilter = 'all';
+    currentFilterOption = 'Featured'; currentSubCategory = 'All'; currentPriceFilter = 'all';
+    currentPage = 1;
+    applyFilters(false);
+    updateMainState(false);
+}
+
+function updateClearFilterBar() {
+    const btn = document.getElementById('clearFilterBtn');
+    if (!btn) return;
+    const hasFilter = currentFilterOption !== 'Featured' || currentPriceFilter !== 'all';
+    if (hasFilter) { btn.classList.remove('hidden'); btn.classList.add('flex'); }
+    else { btn.classList.add('hidden'); btn.classList.remove('flex'); }
 }
 
 let searchTimeout;
@@ -209,18 +264,13 @@ function handleSearchInput() {
     searchTimeout = setTimeout(() => {
         currentPage = 1;
         applyFilters(false);
-        updateMainState(false); 
-    }, 300);
+        updateMainState(false);
+    }, 280);
 }
 
 function clearSearch(type) {
-    if (type === 'desktop') {
-        document.getElementById('desktopSearchInput').value = '';
-        document.getElementById('desktopSearchInput').focus();
-    } else {
-        document.getElementById('mobileSearchInput').value = '';
-        document.getElementById('mobileSearchInput').focus();
-    }
+    if (type === 'desktop') document.getElementById('desktopSearchInput').value = '';
+    else document.getElementById('mobileSearchInput').value = '';
     currentPage = 1;
     applyFilters(false);
     updateMainState(false);
@@ -229,107 +279,96 @@ function clearSearch(type) {
 function updateHeroBanner() {
     const banner = document.getElementById('heroBanner');
     if (!banner) return;
-    const deskVal = document.getElementById('desktopSearchInput').value;
-    const mobVal = document.getElementById('mobileSearchInput').value;
-    const hasSearch = deskVal || mobVal;
-    const showBanner = currentBaseCategory === 'Featured' && !hasSearch;
-    banner.style.display = showBanner ? '' : 'none';
+    const hasSearch = document.getElementById('desktopSearchInput').value || document.getElementById('mobileSearchInput').value;
+    banner.style.display = (currentBaseCategory === 'Featured' && !hasSearch) ? '' : 'none';
+}
+
+function toggleHeaderBackBtn(show) {
+    const btn = document.getElementById('sectionBackBtn');
+    if (!btn) return;
+    if (show) { btn.classList.remove('hidden'); btn.classList.add('flex'); }
+    else { btn.classList.add('hidden'); btn.classList.remove('flex'); }
 }
 
 function navigateTo(category) {
     currentBaseCategory = category;
     currentFilterOption = 'Featured';
     currentSubCategory = 'All';
+    currentPriceFilter = 'all';
     currentPage = 1;
-
     updateActiveMenu();
-    clearAllLayers(); 
-    applyFilters(true); 
+    clearAllLayers();
+    applyFilters(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function changePage(step) {
     currentPage += step;
     applyFilters(true);
-    window.scrollTo({top: 0});
+    window.scrollTo({ top: 0 });
 }
 
 function resetHomeLogic(isPop = false) {
-    currentBaseCategory = 'Featured';
-    currentFilterOption = 'Featured';
-    currentSubCategory = 'All';
-    currentPage = 1;
-
+    currentBaseCategory = 'Featured'; currentFilterOption = 'Featured';
+    currentSubCategory = 'All'; currentPriceFilter = 'all'; currentPage = 1;
     updateActiveMenu();
     document.getElementById('desktopSearchInput').value = '';
     document.getElementById('mobileSearchInput').value = '';
     document.getElementById('desktopSearchClose').classList.add('hidden');
-
-    clearAllLayers(); 
-
-    document.getElementById('infoSection').classList.add('hidden-section');
-    document.getElementById('detailSection').classList.add('hidden-section');
-    document.getElementById('checkoutSection').classList.add('hidden-section');
-    document.getElementById('successSection').classList.add('hidden-section');
-    document.getElementById('adminSection').classList.add('hidden-section');
+    clearAllLayers();
+    hideAllSections();
     document.getElementById('homeSection').style.display = 'block';
-
-    applyFilters(false); 
-    if (!isPop) updateMainState(true); 
-    window.scrollTo({top: 0, behavior: 'smooth'});
-}
-
-function toggleHeaderBackBtn(show) {
-    const btn = document.getElementById('sectionBackBtn');
-    if(btn){
-        if(show) {
-            btn.classList.remove('hidden');
-            btn.classList.add('flex');
-        } else {
-            btn.classList.add('hidden');
-            btn.classList.remove('flex');
-        }
-    }
+    applyFilters(false);
+    if (!isPop) updateMainState(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function updateActiveMenu() {
-    const catItems = document.querySelectorAll('.menu-item-cat');
-    catItems.forEach(el => {
-        if (el.dataset.cat === currentBaseCategory) {
-            el.classList.add('border-black', 'bg-gray-100', 'text-black');
-            el.classList.remove('border-transparent', 'text-gray-500', 'hover:bg-gray-50');
-        } else {
-            el.classList.remove('border-black', 'bg-gray-100', 'text-black');
-            el.classList.add('border-transparent', 'text-gray-500', 'hover:bg-gray-50');
-        }
+    document.querySelectorAll('.menu-item-cat').forEach(el => {
+        const isActive = el.dataset.cat === currentBaseCategory;
+        el.classList.toggle('border-black', isActive);
+        el.classList.toggle('bg-gray-50', isActive);
+        el.classList.toggle('text-black', isActive);
+        el.classList.toggle('border-transparent', !isActive);
+        el.classList.toggle('text-gray-500', !isActive);
     });
 }
 
-function showDesktopSearchClose() {
-    document.getElementById('desktopSearchClose').classList.remove('hidden');
-}
-function closeDesktopSearch() {
-    document.getElementById('desktopSearchInput').value = '';
-    document.getElementById('desktopSearchInput').blur();
-    document.getElementById('desktopSearchClose').classList.add('hidden');
-    clearSearch('desktop');
-}
-
-function toggleMobileSearch() { 
-    const ms = document.getElementById('mobileSearch');
-    if(ms.classList.contains('hidden')) {
-        ms.classList.remove('hidden');
-        ms.classList.add('flex');
-        document.getElementById('mobileSearchInput').focus();
+function toggleFilter() {
+    const drawer = document.getElementById('filterDrawer');
+    const overlay = document.getElementById('filterOverlay');
+    if (drawer.classList.contains('translate-x-full')) {
+        pendingFilterOption = currentFilterOption;
+        pendingSubCategory = currentSubCategory;
+        pendingPriceFilter = currentPriceFilter;
+        updateFilterDrawerUI();
+        drawer.classList.remove('translate-x-full');
+        overlay.classList.remove('hidden');
+        pushAppLayer('filter', () => { drawer.classList.add('translate-x-full'); overlay.classList.add('hidden'); });
     } else {
-        ms.classList.add('hidden');
-        ms.classList.remove('flex');
-        if (document.getElementById('mobileSearchInput').value !== '') {
-            clearSearch('mobile');
-        }
+        goBack();
     }
 }
 
+// ─── Search UI ─────────────────────────────────────────────────────────────────
+function showDesktopSearchClose() { document.getElementById('desktopSearchClose').classList.remove('hidden'); }
+function closeDesktopSearch() {
+    document.getElementById('desktopSearchInput').value = '';
+    document.getElementById('desktopSearchClose').classList.add('hidden');
+    clearSearch('desktop');
+}
+function toggleMobileSearch() {
+    const ms = document.getElementById('mobileSearch');
+    if (ms.classList.contains('hidden')) {
+        ms.classList.remove('hidden'); ms.classList.add('flex');
+        document.getElementById('mobileSearchInput').focus();
+    } else {
+        ms.classList.add('hidden'); ms.classList.remove('flex');
+        if (document.getElementById('mobileSearchInput').value) clearSearch('mobile');
+    }
+}
+
+// ─── Menu ─────────────────────────────────────────────────────────────────────
 function toggleMenu() {
     const el = document.getElementById('sidebar');
     if (el.classList.contains('-translate-x-full')) {
@@ -340,85 +379,18 @@ function toggleMenu() {
     }
 }
 
-let pendingFilterOption = 'Featured';
-let pendingSubCategory = 'All';
-
-function updateFilterDrawerUI() {
-    document.querySelectorAll('input[name="filterOpt"]').forEach(r => r.checked = (r.value === pendingFilterOption));
-    document.querySelectorAll('input[name="subCatOpt"]').forEach(r => r.checked = (r.value === pendingSubCategory));
-
-    const subCatSec = document.getElementById('subCategorySection');
-    if (pendingFilterOption === 'Shop by Category') {
-        subCatSec.classList.remove('hidden');
-    } else {
-        subCatSec.classList.add('hidden');
-    }
+// ─── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(message, icon = 'fa-check', color = '') {
+    const toast = document.getElementById('toast');
+    clearTimeout(toastTimeout);
+    const colorClass = color === 'red' ? 'bg-red-600' : color === 'green' ? 'bg-green-600' : '';
+    toast.innerHTML = `<i class="fa-solid ${icon} mr-2"></i> ${message}`;
+    toast.className = colorClass ? `${colorClass} text-white text-center rounded-md px-5 py-3.5 fixed z-[9999] left-1/2 bottom-0 font-bold tracking-widest text-xs uppercase shadow-xl` : '';
+    toast.classList.add('show');
+    toastTimeout = setTimeout(() => { toast.classList.remove('show'); toast.className = ''; }, 2200);
 }
 
-function toggleFilter() {
-    const drawer = document.getElementById('filterDrawer');
-    const overlay = document.getElementById('filterOverlay');
-    if (drawer.classList.contains('translate-x-full')) {
-        pendingFilterOption = currentFilterOption;
-        pendingSubCategory = currentSubCategory;
-        updateFilterDrawerUI();
-
-        drawer.classList.remove('translate-x-full');
-        overlay.classList.remove('hidden');
-
-        pushAppLayer('filter', () => {
-            drawer.classList.add('translate-x-full');
-            overlay.classList.add('hidden');
-        });
-    } else {
-        goBack();
-    }
-}
-
-function setFilterOpt(val) { 
-    pendingFilterOption = val;
-    if (val !== 'Shop by Category') pendingSubCategory = 'All'; 
-    updateFilterDrawerUI(); 
-}
-
-function setSubCat(val) { 
-    pendingSubCategory = val; 
-    updateFilterDrawerUI(); 
-}
-
-function clearFiltersFromPage() {
-    pendingFilterOption = 'Featured';
-    pendingSubCategory = 'All';
-    currentFilterOption = 'Featured';
-    currentSubCategory = 'All';
-    currentPage = 1;
-    applyFilters(false);
-    updateMainState(false);
-}
-
-function updateClearFilterBar() {
-    const btn = document.getElementById('clearFilterBtn');
-    if (!btn) return;
-    const hasFilter = currentFilterOption !== 'Featured' || (currentFilterOption === 'Shop by Category' && currentSubCategory !== 'All');
-    if (hasFilter) {
-        btn.classList.remove('hidden');
-        btn.classList.add('flex');
-    } else {
-        btn.classList.add('hidden');
-        btn.classList.remove('flex');
-    }
-}
-
-// Applies Filter and Dismisses Drawer
-function applyFilterBtn() {
-    currentFilterOption = pendingFilterOption;
-    currentSubCategory = pendingSubCategory;
-    currentPage = 1;
-    applyFilters(false);
-    updateMainState(false);
-    goBack(); 
-}
-
+// ─── Auth ─────────────────────────────────────────────────────────────────────
 function closeAuthModal() {
     const auth = document.getElementById('authModal');
     if (!auth.classList.contains('hidden-section')) {
@@ -429,10 +401,7 @@ function closeAuthModal() {
 
 function toggleAuth() {
     const user = JSON.parse(localStorage.getItem('user'));
-    if (user) {
-        toggleUserDropdown();
-        return;
-    }
+    if (user) { toggleUserDropdown(); return; }
     const auth = document.getElementById('authModal');
     if (auth.classList.contains('hidden-section')) {
         auth.classList.remove('hidden-section');
@@ -446,47 +415,35 @@ function toggleAuth() {
 function toggleUserDropdown() {
     const dropdown = document.getElementById('userDropdown');
     const isOpen = !dropdown.classList.contains('hidden');
-    if (isOpen) {
-        dropdown.classList.add('hidden');
-    } else {
+    if (isOpen) { dropdown.classList.add('hidden'); }
+    else {
         dropdown.classList.remove('hidden');
-        setTimeout(() => {
-            document.addEventListener('click', closeDropdownOutside, { once: true });
-        }, 0);
+        setTimeout(() => document.addEventListener('click', closeDropdownOutside, { once: true }), 0);
     }
 }
 
 function closeDropdownOutside(e) {
     const btn = document.getElementById('userHeaderBtn');
-    if (!btn.contains(e.target)) {
-        document.getElementById('userDropdown').classList.add('hidden');
-    }
+    if (!btn.contains(e.target)) document.getElementById('userDropdown').classList.add('hidden');
 }
 
 function showAuthSection(section) {
-    const sections = ['loginSection', 'signupSection', 'alreadyLoggedInSection', 'loginSuccessSection', 'signupSuccessSection'];
-    sections.forEach(id => document.getElementById(id).classList.add('hidden'));
+    ['loginSection','signupSection','alreadyLoggedInSection','loginSuccessSection','signupSuccessSection'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+    });
     document.getElementById(section + 'Section').classList.remove('hidden');
 }
 
-function switchAuth(type) {
-    if(type === 'signup') {
-        showAuthSection('signup');
-    } else {
-        showAuthSection('login');
-    }
-}
+function switchAuth(type) { showAuthSection(type === 'signup' ? 'signup' : 'login'); }
 
 async function handleLoginSubmit(event) {
     event.preventDefault();
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-
+    const btn = document.getElementById('loginBtn');
+    btn.textContent = 'SIGNING IN...'; btn.disabled = true;
     try {
         const res = await fetch(`${API_URL}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value })
         });
         const data = await res.json();
         if (res.ok) {
@@ -496,116 +453,97 @@ async function handleLoginSubmit(event) {
             document.getElementById('loginSuccessMsg').innerText = 'WELCOME BACK, ' + data.user.name.split(' ')[0].toUpperCase() + '!';
             showAuthSection('loginSuccess');
         } else {
-            alert(data.error || 'Authentication Failed');
+            alert(data.error || 'Authentication failed');
         }
-    } catch (err) {
-        alert('Server unreachable at this moment');
-    }
+    } catch { alert('Server unreachable. Please try again.'); }
+    finally { btn.textContent = 'LOGIN'; btn.disabled = false; }
 }
 
 async function handleSignupSubmit(event) {
     event.preventDefault();
-    const name = document.getElementById('signupName').value;
-    const username = document.getElementById('signupUsername').value;
-    const email = document.getElementById('signupEmail').value;
-    const phone = document.getElementById('signupPhone').value;
-    const password = document.getElementById('signupPassword').value;
-
+    const btn = document.getElementById('signupBtn');
+    btn.textContent = 'CREATING...'; btn.disabled = true;
     try {
         const res = await fetch(`${API_URL}/auth/signup`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, username, email, phone, password })
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: document.getElementById('signupName').value,
+                username: document.getElementById('signupUsername').value,
+                email: document.getElementById('signupEmail').value,
+                phone: document.getElementById('signupPhone').value,
+                password: document.getElementById('signupPassword').value
+            })
         });
         const data = await res.json();
         if (res.ok) {
-            const signupName = document.getElementById('signupName').value;
-            document.getElementById('signupSuccessMsg').innerText = 'WELCOME, ' + signupName.split(' ')[0].toUpperCase() + '! YOUR ACCOUNT IS READY.';
+            const name = document.getElementById('signupName').value;
+            document.getElementById('signupSuccessMsg').innerText = 'WELCOME, ' + name.split(' ')[0].toUpperCase() + '!';
             showAuthSection('signupSuccess');
             document.getElementById('signupForm').reset();
         } else {
-            alert(data.error || 'Registration Failed');
+            alert(data.error || 'Registration failed');
         }
-    } catch (err) {
-        alert('Server connection error.');
-    }
+    } catch { alert('Server connection error.'); }
+    finally { btn.textContent = 'SIGN UP'; btn.disabled = false; }
 }
 
 function syncUserUI() {
     const user = JSON.parse(localStorage.getItem('user'));
-    const btnText = document.getElementById('userHeaderName');
-    const adminLink = document.getElementById('adminMenuLink');
-    const userDropdown = document.getElementById('userDropdown');
-
+    const sidebarBtn = document.getElementById('sidebarAuthBtn');
+    const sidebarUserInfo = document.getElementById('sidebarUserInfo');
     if (user) {
-        btnText.innerText = user.name.split(' ')[0].toUpperCase();
-        document.getElementById('userHeaderBtn').classList.add('hover-active');
-        userDropdown.classList.add('hidden');
-        const dName = document.getElementById('dropdownName');
-        const dUser = document.getElementById('dropdownUsername');
-        const dEmail = document.getElementById('dropdownEmail');
-        if (dName) dName.innerText = user.name.toUpperCase();
-        if (dUser) dUser.innerText = '@' + (user.username || '');
-        if (dEmail) dEmail.innerText = user.email;
-
-        if (user.role === 'admin') {
-            adminLink.classList.remove('hidden');
-        } else {
-            adminLink.classList.add('hidden');
+        document.getElementById('userHeaderName').innerText = user.name.split(' ')[0].toUpperCase();
+        document.getElementById('userDropdown').classList.add('hidden');
+        document.getElementById('dropdownName').innerText = user.name.toUpperCase();
+        document.getElementById('dropdownUsername').innerText = '@' + (user.username || '');
+        document.getElementById('dropdownEmail').innerText = user.email;
+        document.getElementById('adminMenuLink').classList.toggle('hidden', user.role !== 'admin');
+        if (document.getElementById('adminNameDisplay')) document.getElementById('adminNameDisplay').innerText = user.name.split(' ')[0].toUpperCase();
+        if (sidebarBtn) sidebarBtn.textContent = 'VIEW ACCOUNT';
+        if (sidebarUserInfo) {
+            sidebarUserInfo.classList.remove('hidden');
+            document.getElementById('sidebarUserName').innerText = user.name.toUpperCase();
+            document.getElementById('sidebarUserEmail').innerText = user.email;
         }
     } else {
-        btnText.innerText = '';
-        adminLink.classList.add('hidden');
-        userDropdown.classList.add('hidden');
+        document.getElementById('userHeaderName').innerText = '';
+        document.getElementById('adminMenuLink').classList.add('hidden');
+        document.getElementById('userDropdown').classList.add('hidden');
+        if (sidebarBtn) sidebarBtn.textContent = 'SIGN IN / CREATE ACCOUNT';
+        if (sidebarUserInfo) sidebarUserInfo.classList.add('hidden');
     }
-}
-
-function showToast(message, icon = 'fa-check') {
-    const toast = document.getElementById('toast');
-    clearTimeout(toastTimeout);
-    toast.innerHTML = `<i class="fa-solid ${icon} mr-2"></i> ${message}`;
-    toast.classList.add("show");
-    toastTimeout = setTimeout(() => { toast.classList.remove("show"); }, 2000);
 }
 
 function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    const emailField = document.getElementById('loginEmail');
-    const passField = document.getElementById('loginPassword');
-    if (emailField) emailField.value = '';
-    if (passField) passField.value = '';
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
     syncUserUI();
     resetHomeLogic(false);
-    showToast('Logged out successfully', 'fa-arrow-right-from-bracket');
+    showToast('Signed out successfully', 'fa-arrow-right-from-bracket');
 }
 
+// ─── Info Pages ────────────────────────────────────────────────────────────────
 function showPage(page) {
     const isMenuOpen = !document.getElementById('sidebar').classList.contains('-translate-x-full');
     document.getElementById('homeSection').style.display = 'none';
     document.getElementById('infoSection').classList.remove('hidden-section');
-    toggleHeaderBackBtn(false); 
-
+    toggleHeaderBackBtn(false);
     const title = document.getElementById('infoTitle');
     const content = document.getElementById('infoContent');
-
-    if(page === 'policy') {
+    if (page === 'policy') {
         title.innerText = 'RETURN / EXCHANGE POLICY';
-        content.innerHTML = '<p>Items can be returned or exchanged within 14 days of receiving your order. Please ensure the items are unworn, unwashed, and have the original tags attached. Sale items are final and non-refundable.</p>';
-    } else if(page === 'about') {
+        content.innerHTML = `<p class="text-gray-600 leading-relaxed">Items can be returned or exchanged within <strong>14 days</strong> of receiving your order. Please ensure the items are unworn, unwashed, and have the original tags attached.</p><p class="text-gray-600 leading-relaxed mt-4">Sale items are final and non-refundable. To initiate a return, contact us via WhatsApp at <strong>+92 300 1234567</strong> with your order ID and reason.</p>`;
+    } else if (page === 'about') {
         title.innerText = 'ABOUT US';
-        content.innerHTML = '<p>Welcome to RIFT THRIFT CLOTHING. We bring you the best selection of curated fashion. We believe in sustainable style and affordable prices for everyone. Starting in Karachi, we are proud to provide top quality cloud baggy jeans, denims and more.</p>';
-    } else if(page === 'contact') {
+        content.innerHTML = `<p class="text-gray-600 leading-relaxed">Welcome to <strong>RIFT THRIFT CLOTHING</strong> — Karachi's home for curated, affordable fashion. We believe in quality without compromise and style without the markup.</p><p class="text-gray-600 leading-relaxed mt-4">Founded in 2024, we specialize in premium denim, cloud baggy jeans, and streetwear. Every piece is handpicked for quality and fit.</p>`;
+    } else if (page === 'contact') {
         title.innerText = 'CONTACT US';
-        content.innerHTML = '<p class="font-bold mt-4">Email:</p><p class="mb-4">support@riftthrift.pk</p><p class="font-bold">Phone / WhatsApp:</p><p class="mb-4">+92 300 1234567</p><p class="font-bold">Address:</p><p>RIFT THRIFT CLOTHING HQ, Karachi, Pakistan</p>';
+        content.innerHTML = `<div class="space-y-4"><div class="flex items-center gap-3"><i class="fa-brands fa-instagram text-lg"></i><div><p class="font-bold text-xs tracking-widest">INSTAGRAM</p><a href="https://www.instagram.com/rift_pk" target="_blank" class="text-blue-600 text-sm">@rift_pk</a></div></div><div class="flex items-center gap-3"><i class="fa-brands fa-whatsapp text-lg text-green-600"></i><div><p class="font-bold text-xs tracking-widest">WHATSAPP / PHONE</p><a href="https://wa.me/923001234567" target="_blank" class="text-blue-600 text-sm">+92 300 1234567</a></div></div><div class="flex items-center gap-3"><i class="fa-solid fa-envelope text-lg"></i><div><p class="font-bold text-xs tracking-widest">EMAIL</p><p class="text-sm">support@riftthrift.pk</p></div></div><div class="flex items-center gap-3"><i class="fa-solid fa-location-dot text-lg"></i><div><p class="font-bold text-xs tracking-widest">ADDRESS</p><p class="text-sm">Karachi, Pakistan</p></div></div></div>`;
     }
-    window.scrollTo({top: 0});
-
-    const closeInfo = () => {
-        document.getElementById('infoSection').classList.add('hidden-section');
-        document.getElementById('homeSection').style.display = 'block';
-    };
-
+    window.scrollTo({ top: 0 });
+    const closeInfo = () => { document.getElementById('infoSection').classList.add('hidden-section'); document.getElementById('homeSection').style.display = 'block'; };
     if (isMenuOpen) {
         document.getElementById('sidebar').classList.add('-translate-x-full');
         replaceTopAppLayer('info', closeInfo);
@@ -614,20 +552,14 @@ function showPage(page) {
     }
 }
 
-let selectedSize = 'M';
-let toastTimeout;
-let directBuyItem = null;
-
+// ─── Cart ─────────────────────────────────────────────────────────────────────
 function toggleCart() {
     const drawer = document.getElementById('cartDrawer');
     const overlay = document.getElementById('cartOverlay');
     if (drawer.classList.contains('translate-x-full')) {
         drawer.classList.remove('translate-x-full');
         overlay.classList.remove('hidden');
-        pushAppLayer('cart', () => {
-            drawer.classList.add('translate-x-full');
-            overlay.classList.add('hidden');
-        });
+        pushAppLayer('cart', () => { drawer.classList.add('translate-x-full'); overlay.classList.add('hidden'); });
     } else {
         goBack();
     }
@@ -636,87 +568,238 @@ function toggleCart() {
 function updateCartUI() {
     const totalItemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
     document.querySelectorAll('.cart-badge').forEach(el => el.innerText = totalItemsCount);
-
+    const cartCountEl = document.getElementById('cartCount');
+    if (cartCountEl) cartCountEl.innerText = totalItemsCount > 0 ? `(${totalItemsCount})` : '';
     const list = document.getElementById('cartItemsList');
     let total = 0;
-
-    if(cartItems.length === 0) {
-        list.innerHTML = `
-            <div class="flex flex-col items-center justify-center mt-12">
-                <i class="fa-solid fa-cart-arrow-down text-4xl text-gray-300 mb-4 cursor-default"></i>
-                <p class="text-gray-400 text-sm mb-6 font-medium cursor-default">Your cart is empty.</p>
-                <button onclick="goBack()" class="bg-black text-white px-8 py-3 text-xs font-bold tracking-widest uppercase hover:bg-gray-800 transition cursor-pointer shadow rounded">Continue Shopping</button>
-            </div>
-        `;
-        document.getElementById('cartSubtotal').innerText = `Rs. 0`;
-        document.getElementById('cartTotal').innerText = `Rs. 0`;
+    if (cartItems.length === 0) {
+        list.innerHTML = `<div class="flex flex-col items-center justify-center mt-16">
+            <i class="fa-solid fa-cart-arrow-down text-5xl text-gray-200 mb-4"></i>
+            <p class="text-gray-400 text-sm mb-6 font-medium">Your cart is empty</p>
+            <button onclick="goBack()" class="bg-black text-white px-8 py-3 text-xs font-bold tracking-widest uppercase hover:bg-gray-800 transition cursor-pointer shadow rounded-sm">Continue Shopping</button>
+        </div>`;
+        document.getElementById('cartSubtotal').innerText = 'Rs. 0';
+        document.getElementById('cartTotal').innerText = 'Rs. 0';
         return;
     }
-
     list.innerHTML = cartItems.map((item, index) => {
-        const rowTotal = item.price * item.quantity;
+        const rowTotal = (item.sale_price || item.price) * item.quantity;
         total += rowTotal;
-
-        return `
-        <div class="flex gap-4 border-b pb-4">
-            <div class="w-20 h-24 bg-gray-100 border flex flex-shrink-0 items-center justify-center text-[10px] text-gray-300 font-bold relative overflow-hidden">
+        return `<div class="flex gap-3 border-b pb-4">
+            <div class="w-16 h-20 bg-gray-100 border flex-shrink-0 overflow-hidden">
                 <img src="${item.images[0]}" class="w-full h-full object-cover" onerror="this.style.opacity='0.3'">
             </div>
-            <div class="flex-1 flex flex-col justify-between py-1">
+            <div class="flex-1 flex flex-col justify-between py-0.5">
                 <div>
-                    <h4 class="text-[12px] font-bold uppercase truncate pr-4">${item.name}</h4>
-                    <p class="text-[11px] text-gray-500 mt-1 uppercase font-medium">Size: <span class="text-black font-bold">${item.cartSize}</span> &nbsp;|&nbsp; Color: ${item.color}</p>
+                    <h4 class="text-[11px] font-bold uppercase truncate">${item.name}</h4>
+                    <p class="text-[10px] text-gray-400 mt-0.5 uppercase">Size: <strong>${item.cartSize}</strong> &nbsp;|&nbsp; ${item.color}</p>
                 </div>
                 <div class="flex justify-between items-center mt-2">
-                    <div class="flex items-center gap-3 mt-1 bg-gray-50 border border-gray-200 w-fit px-2 py-1 rounded">
-                        <button onclick="updateQuantity(${index}, -1)" class="text-gray-500 hover:text-black transition cursor-pointer text-xs">
-                            ${item.quantity === 1 ? '<i class="fa-solid fa-trash-can text-red-500"></i>' : '<i class="fa-solid fa-minus"></i>'}
-                        </button>
+                    <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 px-2 py-1 rounded-sm">
+                        <button onclick="updateQuantity(${index},-1)" class="text-gray-500 hover:text-black transition cursor-pointer text-xs">${item.quantity === 1 ? '<i class="fa-solid fa-trash-can text-red-400"></i>' : '<i class="fa-solid fa-minus"></i>'}</button>
                         <span class="text-sm font-bold w-4 text-center">${item.quantity}</span>
-                        <button onclick="updateQuantity(${index}, 1)" class="text-gray-500 hover:text-black transition cursor-pointer text-xs">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
+                        <button onclick="updateQuantity(${index},1)" class="text-gray-500 hover:text-black transition cursor-pointer text-xs"><i class="fa-solid fa-plus"></i></button>
                     </div>
-                    <span class="font-bold text-sm">Rs. ${rowTotal}</span>
+                    <span class="font-bold text-sm">Rs. ${rowTotal.toLocaleString()}</span>
                 </div>
             </div>
         </div>`;
     }).join('');
-
-    let finalTotal = total + 250;
-    document.getElementById('cartSubtotal').innerText = `Rs. ${total}`;
-    document.getElementById('cartTotal').innerText = `Rs. ${finalTotal}`;
+    document.getElementById('cartSubtotal').innerText = `Rs. ${total.toLocaleString()}`;
+    document.getElementById('cartTotal').innerText = `Rs. ${(total + 250).toLocaleString()}`;
 }
 
 function addCart(id) {
     const p = products.find(x => x.id === id);
-    const existingItemIndex = cartItems.findIndex(item => item.id === id && item.cartSize === selectedSize);
-
-    if (existingItemIndex > -1) {
-        cartItems[existingItemIndex].quantity += 1; 
-    } else {
-        cartItems.push({...p, cartSize: selectedSize, quantity: 1, cartId: Date.now()});
-    }
-
+    if (!p) return;
+    const existing = cartItems.findIndex(item => item.id === id && item.cartSize === selectedSize);
+    if (existing > -1) { cartItems[existing].quantity += 1; }
+    else { cartItems.push({ ...p, cartSize: selectedSize, quantity: 1 }); }
     updateCartUI();
     document.querySelectorAll('.cart-icon-btn').forEach(btn => {
-        btn.classList.remove('cart-shake'); 
-        void btn.offsetWidth; 
-        btn.classList.add('cart-shake');
-        setTimeout(() => { btn.classList.remove('cart-shake'); }, 650);
+        btn.classList.remove('cart-shake'); void btn.offsetWidth; btn.classList.add('cart-shake');
+        setTimeout(() => btn.classList.remove('cart-shake'), 700);
     });
-
-    const toast = document.getElementById('toast');
-    clearTimeout(toastTimeout);
-    toast.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Added to Cart';
-    toast.classList.add("show");
-    toastTimeout = setTimeout(() => { toast.classList.remove("show"); }, 1500);
+    showToast('Added to Cart', 'fa-bag-shopping');
 }
 
-let cardTouchStartX = 0;
-let cardTouchStartY = 0;
-let cardWasSwiped = false;
+function updateQuantity(index, change) {
+    if (cartItems[index].quantity === 1 && change === -1) cartItems.splice(index, 1);
+    else cartItems[index].quantity += change;
+    updateCartUI();
+}
 
+// ─── Wishlist ──────────────────────────────────────────────────────────────────
+function toggleWishlist(id) {
+    const idx = wishlist.indexOf(id);
+    if (idx > -1) { wishlist.splice(idx, 1); showToast('Removed from Wishlist', 'fa-heart-crack', 'red'); }
+    else { wishlist.push(id); showToast('Added to Wishlist ♥', 'fa-heart'); }
+    localStorage.setItem('rift_wishlist', JSON.stringify(wishlist));
+    updateWishBadge();
+    // Update heart icons in current render
+    const wishBtns = document.querySelectorAll(`[onclick*="toggleWishlist(${id})"]`);
+    wishBtns.forEach(btn => {
+        const isNowWished = wishlist.includes(id);
+        btn.classList.toggle('active', isNowWished);
+        btn.classList.toggle('text-red-500', isNowWished);
+        btn.classList.toggle('text-gray-400', !isNowWished);
+        btn.innerHTML = `<i class="fa-${isNowWished ? 'solid' : 'regular'} fa-heart text-sm"></i>`;
+    });
+}
+
+function updateWishBadge() {
+    const badge = document.getElementById('wishBadge');
+    if (!badge) return;
+    if (wishlist.length > 0) {
+        badge.textContent = wishlist.length;
+        badge.classList.remove('hidden');
+        badge.classList.add('flex');
+    } else {
+        badge.classList.add('hidden');
+        badge.classList.remove('flex');
+    }
+}
+
+function showWishlistPage() {
+    const section = document.getElementById('wishlistSection');
+    section.classList.remove('hidden-section');
+    const close = () => section.classList.add('hidden-section');
+    const isMenuOpen = !document.getElementById('sidebar').classList.contains('-translate-x-full');
+    if (isMenuOpen) {
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        replaceTopAppLayer('wishlist', close);
+    } else {
+        pushAppLayer('wishlist', close);
+    }
+    renderWishlist();
+}
+
+function hideWishlist() { goBack(); }
+
+function renderWishlist() {
+    const wishItems = products.filter(p => wishlist.includes(p.id));
+    const emptyEl = document.getElementById('wishlistEmpty');
+    const gridEl = document.getElementById('wishlistGrid');
+    if (!wishItems.length) {
+        emptyEl.classList.remove('hidden');
+        gridEl.classList.add('hidden');
+        return;
+    }
+    emptyEl.classList.add('hidden');
+    gridEl.classList.remove('hidden');
+    gridEl.innerHTML = wishItems.map(p => `
+        <div class="bg-white border rounded-lg overflow-hidden shadow-sm cursor-pointer hover:shadow-md transition">
+            <div class="aspect-[3/4] bg-gray-100 relative overflow-hidden" onclick="showDetail(${p.id}); hideWishlist();">
+                <img src="${p.images[0]}" class="w-full h-full object-cover">
+            </div>
+            <div class="p-3">
+                <p class="text-[10px] text-gray-400 tracking-widest uppercase">${p.gender} / ${p.category}</p>
+                <h4 class="text-xs font-bold uppercase truncate mt-0.5">${p.name}</h4>
+                <p class="text-sm font-bold mt-1">Rs. ${p.sale_price || p.price}</p>
+                <div class="flex gap-2 mt-2">
+                    <button onclick="addCart(${p.id})" class="flex-1 bg-black text-white py-2 text-[10px] font-bold tracking-widest uppercase cursor-pointer hover:bg-gray-800 transition rounded-sm">ADD TO CART</button>
+                    <button onclick="toggleWishlist(${p.id}); renderWishlist();" class="border border-red-300 text-red-500 px-3 py-2 text-[10px] cursor-pointer hover:bg-red-50 transition rounded-sm"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                </div>
+            </div>
+        </div>`).join('');
+}
+
+// ─── Product Detail ────────────────────────────────────────────────────────────
+function showDetail(id) {
+    savedHomeScroll = window.scrollY;
+    selectedSize = 'M';
+    const p = products.find(x => x.id === id);
+    if (!p) return;
+    activeProductImages = p.images;
+    const unavailableSizes = Array.isArray(p.unavailable_sizes) ? p.unavailable_sizes : [];
+    const content = document.getElementById('detailContent');
+    document.getElementById('detailSection').classList.remove('hidden-section');
+    window.scrollTo({ top: 0 });
+    pushAppLayer('detail', () => {
+        document.getElementById('detailSection').classList.add('hidden-section');
+        setTimeout(() => window.scrollTo({ top: savedHomeScroll, behavior: 'instant' }), 0);
+    });
+
+    const displayPrice = p.sale_price
+        ? `<p class="mb-1"><span class="line-through text-gray-400 text-base mr-2">Rs. ${p.price}</span><span class="text-red-500 font-bold text-2xl md:text-3xl">Rs. ${p.sale_price}</span></p>
+           <span class="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded">SAVE Rs. ${p.price - p.sale_price}</span>`
+        : `<p class="text-xl md:text-2xl font-bold text-black mb-3">Rs. ${p.price}</p>`;
+
+    const isWished = wishlist.includes(p.id);
+    const sizeButtons = ['S', 'M', 'L', 'XL'].map(s => {
+        const isUnavail = unavailableSizes.includes(s);
+        const isSelected = s === 'M';
+        return `<button onclick="${isUnavail ? '' : `selectSizeBtn(this,'${s}')`}" class="size-btn border border-gray-300 bg-white text-black w-11 h-11 md:w-12 md:h-12 text-xs md:text-sm font-bold ${isSelected && !isUnavail ? 'selected border-black bg-black text-white' : ''} ${isUnavail ? 'unavailable' : ''}" ${isUnavail ? 'disabled title="Out of Stock"' : ''}>${s}${isUnavail ? '' : ''}</button>`;
+    }).join('');
+
+    content.innerHTML = `
+        <div class="space-y-2 md:space-y-3 w-full">
+            <div class="aspect-[3/4] bg-gray-100 flex items-center justify-center relative overflow-hidden cursor-pointer rounded border border-gray-200 group no-click-effect"
+                ontouchstart="detailTouchStart(event)" ontouchend="detailTouchEnd(event)" onclick="detailClick(event)">
+                <div id="detail-img-counter" class="absolute top-3 right-3 bg-black/60 text-white text-[10px] px-2 py-1 rounded font-bold tracking-widest z-20 backdrop-blur-sm">1/${activeProductImages.length}</div>
+                <div class="absolute inset-0 skeleton-loader rounded z-0"></div>
+                <img id="mainDetailImg" data-index="0" src="${activeProductImages[0]}" class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 opacity-0 z-10 relative" onload="this.classList.remove('opacity-0'); this.previousElementSibling.style.display='none';">
+                <div class="absolute bottom-3 right-3 bg-white/80 w-8 h-8 flex justify-center items-center rounded-full shadow-lg hover:bg-white hover:scale-110 transition z-20"><i class="fa-solid fa-expand text-sm"></i></div>
+                ${p.is_flash_sale ? '<div class="absolute top-3 left-3 bg-red-500 text-white text-[9px] font-bold px-2 py-1 z-20 uppercase tracking-widest">SALE</div>' : (p.is_new ? '<div class="absolute top-3 left-3 bg-black text-white text-[9px] font-bold px-2 py-1 z-20 uppercase tracking-widest">NEW</div>' : '')}
+            </div>
+            <div class="flex gap-2 justify-start">
+                ${activeProductImages.map((img, i) => `<div class="w-14 md:w-20 aspect-[3/4] bg-gray-100 border border-gray-200 cursor-pointer hover:border-black transition relative overflow-hidden rounded-sm" onclick="setMainImg(${i})">
+                    <div class="absolute inset-0 skeleton-loader z-0"></div>
+                    <img src="${img}" class="w-full h-full object-cover opacity-0 z-10 relative transition-opacity duration-300" onload="this.classList.remove('opacity-0'); this.previousElementSibling.style.display='none';">
+                </div>`).join('')}
+            </div>
+        </div>
+        <div class="flex flex-col justify-center py-2 md:py-0 px-1 md:px-0">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-[10px] font-bold text-gray-400 tracking-widest uppercase">${p.sale_type || (p.gender + ' / ' + p.category)}</p>
+                <button onclick="toggleWishlist(${p.id})" class="wish-btn flex items-center gap-1.5 text-xs font-bold ${isWished ? 'text-red-500 active' : 'text-gray-400'} hover:text-red-500 transition cursor-pointer">
+                    <i class="fa-${isWished ? 'solid' : 'regular'} fa-heart text-lg"></i>
+                    <span class="hidden md:inline">${isWished ? 'Wishlisted' : 'Wishlist'}</span>
+                </button>
+            </div>
+            <h2 class="logo-font text-2xl md:text-3xl font-bold mb-2 uppercase tracking-wide leading-tight text-gray-900">${p.name}</h2>
+            <div class="mb-3">${displayPrice}</div>
+            <p class="text-sm text-gray-500 font-medium mb-4 leading-relaxed">${p.description}</p>
+
+            <div class="space-y-4 mb-5 border-t border-b py-4 border-gray-200">
+                <div>
+                    <div class="flex items-center justify-between mb-2.5">
+                        <p class="text-[10px] font-bold text-gray-400 tracking-widest uppercase">SELECT SIZE</p>
+                        <button onclick="setMainImg(2)" class="text-[10px] font-bold text-gray-500 hover:text-black transition cursor-pointer tracking-widest underline">SIZE GUIDE</button>
+                    </div>
+                    <div class="flex gap-2">${sizeButtons}</div>
+                    ${unavailableSizes.length > 0 ? `<p class="text-[10px] text-gray-400 mt-2"><i class="fa-solid fa-info-circle mr-1"></i>Strikethrough sizes are currently out of stock</p>` : ''}
+                </div>
+                <div class="flex items-center gap-2">
+                    <p class="text-[10px] font-bold text-gray-400 tracking-widest uppercase">COLOR:</p>
+                    <span class="text-xs font-bold text-black">${p.color}</span>
+                    <span class="w-4 h-4 rounded-full border border-gray-300 shadow-sm inline-block" style="background-color:${p.color_hex}"></span>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2.5">
+                <button onclick="addCart(${p.id})" class="cursor-pointer w-full border border-black bg-white text-black py-3.5 md:py-4 font-bold text-[11px] md:text-xs tracking-widest uppercase hover:bg-gray-100 transition-colors duration-300 rounded-sm">ADD TO CART</button>
+                <button onclick="buyNow(${p.id})" class="cursor-pointer w-full bg-black text-white py-3.5 md:py-4 font-bold text-[11px] md:text-xs tracking-widest uppercase hover:bg-gray-800 transition-colors duration-300 rounded-sm shadow-md">BUY NOW →</button>
+            </div>
+            ${p.is_best_seller ? '<p class="text-center text-[10px] text-gray-400 mt-3 tracking-widest"><i class="fa-solid fa-star text-yellow-500 mr-1"></i>BEST SELLER — Loved by our customers</p>' : ''}
+        </div>
+    `;
+}
+
+function hideDetail() { goBack(); }
+
+function selectSizeBtn(btn, size) {
+    btn.closest('.flex').querySelectorAll('.size-btn:not(.unavailable)').forEach(b => {
+        b.classList.remove('selected', 'border-black', 'bg-black', 'text-white');
+        b.classList.add('border-gray-300', 'bg-white', 'text-black');
+    });
+    btn.classList.add('selected', 'border-black', 'bg-black', 'text-white');
+    btn.classList.remove('border-gray-300', 'bg-white', 'text-black');
+    selectedSize = size;
+}
+
+// ─── Image Swipe ──────────────────────────────────────────────────────────────
+let cardTouchStartX = 0, cardTouchStartY = 0, cardWasSwiped = false;
 function cardTouchStart(e, id) {
     cardTouchStartX = e.changedTouches[0].screenX;
     cardTouchStartY = e.changedTouches[0].screenY;
@@ -724,88 +807,130 @@ function cardTouchStart(e, id) {
     const dots = document.getElementById('card-dots-' + id);
     if (dots) dots.style.opacity = '1';
 }
-
 function cardTouchEnd(e, id) {
     const endX = e.changedTouches[0].screenX;
     const endY = e.changedTouches[0].screenY;
     const diffX = cardTouchStartX - endX;
     const diffY = cardTouchStartY - endY;
-
     if (Math.abs(diffX) > 35 && Math.abs(diffX) > Math.abs(diffY)) {
         cardWasSwiped = true;
         const p = products.find(x => x.id === id);
         if (!p) return;
-        const imgCount = p.images.filter(i => i && i !== '**********').length || p.images.length;
+        const imgCount = p.images.length;
         if (!cardImageIndex[id]) cardImageIndex[id] = 0;
-
-        if (diffX > 0) {
-            cardImageIndex[id] = (cardImageIndex[id] + 1) % imgCount;
-        } else {
-            cardImageIndex[id] = (cardImageIndex[id] - 1 + imgCount) % imgCount;
-        }
-        swipeCardImage(id, p.images[cardImageIndex[id]], diffX > 0 ? 1 : -1, imgCount);
+        cardImageIndex[id] = diffX > 0 ? (cardImageIndex[id] + 1) % imgCount : (cardImageIndex[id] - 1 + imgCount) % imgCount;
+        swipeCardImage(id, p.images[cardImageIndex[id]], diffX > 0 ? 1 : -1);
     } else {
-        setTimeout(() => {
-            const dots = document.getElementById('card-dots-' + id);
-            if (dots) dots.style.opacity = '0';
-        }, 2000);
+        setTimeout(() => { const d = document.getElementById('card-dots-' + id); if (d) d.style.opacity = '0'; }, 2000);
     }
 }
-
-function handleCardClick(e, id) {
-    if (cardWasSwiped) {
-        cardWasSwiped = false;
-        return;
-    }
-    showDetail(id);
-}
-
-function swipeCardImage(id, newSrc, direction, total) {
+function handleCardClick(e, id) { if (cardWasSwiped) { cardWasSwiped = false; return; } showDetail(id); }
+function swipeCardImage(id, newSrc, direction) {
     const img = document.getElementById('card-img-' + id);
     if (!img) return;
-
-    img.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
-    img.style.opacity = '0';
-    img.style.transform = direction > 0 ? 'translateX(-20%)' : 'translateX(20%)';
-
+    img.style.transition = 'transform 0.2s, opacity 0.2s';
+    img.style.opacity = '0'; img.style.transform = direction > 0 ? 'translateX(-20%)' : 'translateX(20%)';
     setTimeout(() => {
-        img.src = newSrc;
-        img.style.transition = 'none';
+        img.src = newSrc; img.style.transition = 'none';
         img.style.transform = direction > 0 ? 'translateX(20%)' : 'translateX(-20%)';
-        img.style.opacity = '0';
         void img.offsetWidth;
-        img.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
-        img.style.transform = 'translateX(0)';
-        img.style.opacity = '1';
+        img.style.transition = 'transform 0.2s, opacity 0.2s';
+        img.style.opacity = '1'; img.style.transform = 'translateX(0)';
     }, 200);
-
     const currentIdx = cardImageIndex[id] || 0;
     document.querySelectorAll('.card-dot-' + id).forEach((dot, i) => {
         dot.className = dot.className.replace(/bg-white\/\d+|bg-white(?!\/)/g, '');
         dot.classList.add(i === currentIdx ? 'bg-white' : 'bg-white/50');
     });
-
     const dots = document.getElementById('card-dots-' + id);
-    if (dots) {
-        dots.style.opacity = '1';
-        clearTimeout(dots._hideTimer);
-        dots._hideTimer = setTimeout(() => { dots.style.opacity = '0'; }, 2500);
-    }
+    if (dots) { dots.style.opacity = '1'; clearTimeout(dots._hideTimer); dots._hideTimer = setTimeout(() => { dots.style.opacity = '0'; }, 2500); }
 }
 
-function updateQuantity(index, change) {
-    if(cartItems[index].quantity === 1 && change === -1) {
-        cartItems.splice(index, 1);
+// ─── Detail Image ─────────────────────────────────────────────────────────────
+let detailTouchStartX = 0, detailTouchStartY = 0, isDetailSwiped = false;
+function detailTouchStart(e) { detailTouchStartX = e.changedTouches[0].screenX; detailTouchStartY = e.changedTouches[0].screenY; isDetailSwiped = false; }
+function detailTouchEnd(e) {
+    const diffX = detailTouchStartX - e.changedTouches[0].screenX;
+    const diffY = detailTouchStartY - e.changedTouches[0].screenY;
+    if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY)) {
+        isDetailSwiped = true;
+        changeDetailImg(diffX > 0 ? 1 : -1);
+    }
+}
+function detailClick(e) { if (!isDetailSwiped) openLightboxFromDetail(); isDetailSwiped = false; }
+function changeDetailImg(step) {
+    const mainImg = document.getElementById('mainDetailImg');
+    if (!mainImg) return;
+    let idx = parseInt(mainImg.getAttribute('data-index')) + step;
+    if (idx < 0) idx = activeProductImages.length - 1;
+    if (idx >= activeProductImages.length) idx = 0;
+    setMainImg(idx, step);
+}
+function setMainImg(index, direction = 0) {
+    const mainImg = document.getElementById('mainDetailImg');
+    if (!mainImg) return;
+    if (direction !== 0) {
+        mainImg.style.transition = 'transform 0.25s, opacity 0.25s';
+        mainImg.style.opacity = '0'; mainImg.style.transform = direction > 0 ? 'translateX(-30px)' : 'translateX(30px)';
+        setTimeout(() => {
+            mainImg.src = activeProductImages[index]; mainImg.setAttribute('data-index', index);
+            mainImg.style.transition = 'none'; mainImg.style.transform = direction > 0 ? 'translateX(30px)' : 'translateX(-30px)';
+            void mainImg.offsetWidth;
+            mainImg.style.transition = 'transform 0.25s, opacity 0.25s';
+            mainImg.style.opacity = '1'; mainImg.style.transform = 'translateX(0)';
+        }, 250);
     } else {
-        cartItems[index].quantity += change;
+        mainImg.style.transition = 'opacity 0.2s';
+        mainImg.style.opacity = '0';
+        setTimeout(() => { mainImg.src = activeProductImages[index]; mainImg.setAttribute('data-index', index); mainImg.style.opacity = '1'; }, 200);
     }
-    updateCartUI();
+    const counter = document.getElementById('detail-img-counter');
+    if (counter) counter.innerText = `${index + 1}/${activeProductImages.length}`;
 }
 
+// ─── Lightbox ─────────────────────────────────────────────────────────────────
+function openLightboxFromDetail() {
+    const index = parseInt(document.getElementById('mainDetailImg').getAttribute('data-index'));
+    openLightbox(index);
+}
+function openLightbox(index) {
+    currentLightboxIndex = index;
+    document.getElementById('lightbox').classList.remove('hidden-section');
+    updateLightboxImg();
+    pushAppLayer('lightbox', () => document.getElementById('lightbox').classList.add('hidden-section'));
+}
+function closeLightbox() { goBack(); }
+function changeLightboxImg(step) {
+    currentLightboxIndex = (currentLightboxIndex + step + activeProductImages.length) % activeProductImages.length;
+    updateLightboxImg(step);
+}
+function updateLightboxImg(direction = 0) {
+    const img = document.getElementById('lightbox-img');
+    const loader = document.getElementById('lightbox-loader');
+    loader.style.display = 'flex';
+    if (direction !== 0) {
+        img.style.transition = 'transform 0.25s, opacity 0.25s';
+        img.style.opacity = '0'; img.style.transform = direction > 0 ? 'translateX(-50px)' : 'translateX(50px)';
+        setTimeout(() => {
+            img.src = activeProductImages[currentLightboxIndex];
+            img.style.transition = 'none'; img.style.transform = direction > 0 ? 'translateX(50px)' : 'translateX(-50px)';
+            void img.offsetWidth;
+            img.style.transition = 'transform 0.25s, opacity 0.25s';
+            img.style.opacity = '1'; img.style.transform = 'translateX(0)';
+        }, 250);
+    } else {
+        img.style.opacity = '0';
+        setTimeout(() => { img.src = activeProductImages[currentLightboxIndex]; img.style.opacity = '1'; }, 200);
+    }
+    const counter = document.getElementById('lightbox-counter');
+    if (counter) counter.innerText = `${currentLightboxIndex + 1}/${activeProductImages.length}`;
+}
+
+// ─── Checkout ─────────────────────────────────────────────────────────────────
 function buyNow(id) {
     const p = products.find(x => x.id === id);
     directBuyItem = { ...p, cartSize: selectedSize, quantity: 1 };
-    proceedToCheckout(true); 
+    proceedToCheckout(true);
 }
 
 function proceedToCheckout(isDirect = false) {
@@ -817,56 +942,37 @@ function proceedToCheckout(isDirect = false) {
     if (couponMsg) { couponMsg.classList.add('hidden'); couponMsg.textContent = ''; }
     if (discountRow) discountRow.classList.add('hidden');
 
-    let itemsToProcess = [];
-
-    if (isDirect) {
-        itemsToProcess = [directBuyItem];
-    } else {
-        if(cartItems.length === 0) {
-            alert('Your cart is empty! Please add some products before checkout.');
-            return;
-        }
-        itemsToProcess = cartItems;
-    }
+    let itemsToProcess = isDirect ? [directBuyItem] : cartItems;
+    if (!isDirect && cartItems.length === 0) { alert('Your cart is empty!'); return; }
 
     const isCartOpen = !document.getElementById('cartDrawer').classList.contains('translate-x-full');
-    const summaryItems = document.getElementById('checkoutSummaryItems');
     let subtotal = 0;
 
-    summaryItems.innerHTML = itemsToProcess.map(item => {
-        const rowTotal = item.price * item.quantity;
+    document.getElementById('checkoutSummaryItems').innerHTML = itemsToProcess.map(item => {
+        const unitPrice = item.sale_price || item.price;
+        const rowTotal = unitPrice * item.quantity;
         subtotal += rowTotal;
-
-        return `
-        <div class="flex gap-4 items-center">
-            <div class="w-14 h-16 bg-gray-200 border-shrink-0 flex items-center justify-center overflow-hidden">
-                <img src="${item.images[0]}" class="w-full h-full object-cover" onerror="this.style.opacity='0.3'">
-            </div>
+        return `<div class="flex gap-3 items-center">
+            <div class="w-12 h-14 bg-gray-200 overflow-hidden flex-shrink-0 border"><img src="${item.images[0]}" class="w-full h-full object-cover" onerror="this.style.opacity='0.3'"></div>
             <div class="flex-1 flex justify-between items-center">
-                <div>
-                    <p class="font-bold text-xs uppercase">${item.name} <span class="text-red-500 lowercase ml-1">x${item.quantity}</span></p>
-                    <p class="text-[11px] text-gray-500 mt-1 uppercase font-medium">Size: ${item.cartSize} &nbsp;|&nbsp; Color: ${item.color}</p>
-                </div>
-                <span class="font-bold text-sm">Rs. ${rowTotal}</span>
+                <div><p class="font-bold text-xs uppercase truncate">${item.name} <span class="text-red-500 font-normal">×${item.quantity}</span></p><p class="text-[10px] text-gray-400 mt-0.5 uppercase">Size: ${item.cartSize} | ${item.color}</p></div>
+                <span class="font-bold text-sm flex-shrink-0">Rs. ${rowTotal.toLocaleString()}</span>
             </div>
-        </div>
-        `;
+        </div>`;
     }).join('');
 
     currentCheckoutSubtotal = subtotal;
-    document.getElementById('chkSubtotal').innerText = `Rs. ${subtotal}`;
-    document.getElementById('chkTotal').innerText = `Rs. ${subtotal + 250}`;
+    document.getElementById('chkSubtotal').innerText = `Rs. ${subtotal.toLocaleString()}`;
+    document.getElementById('chkTotal').innerText = `Rs. ${(subtotal + 250).toLocaleString()}`;
 
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
-        document.getElementById('chkName').value = user.name || "";
-        document.getElementById('chkEmail').value = user.email || "";
-        document.getElementById('chkPhone').value = user.phone || "";
+        if (document.getElementById('chkName')) document.getElementById('chkName').value = user.name || '';
+        if (document.getElementById('chkEmail')) document.getElementById('chkEmail').value = user.email || '';
     }
 
     document.getElementById('checkoutSection').classList.remove('hidden-section');
     const closeCheckout = () => document.getElementById('checkoutSection').classList.add('hidden-section');
-
     if (isCartOpen) {
         document.getElementById('cartDrawer').classList.add('translate-x-full');
         document.getElementById('cartOverlay').classList.add('hidden');
@@ -881,35 +987,26 @@ function hideCheckout() { goBack(); }
 async function applyCoupon() {
     const code = document.getElementById('couponInput').value.trim().toUpperCase();
     if (!code) { showCouponMsg('Please enter a promo code.', 'error'); return; }
-
     const btn = document.getElementById('applyCouponBtn');
-    const originalText = btn.textContent;
-    btn.textContent = '...';
-    btn.disabled = true;
-
+    btn.textContent = '...'; btn.disabled = true;
     try {
         const res = await fetch(`${API_URL}/coupons/apply`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code, subtotal: currentCheckoutSubtotal })
         });
         const data = await res.json();
         if (res.ok && data.valid) {
             appliedCoupon = data;
             const label = data.discount_type === 'percent' ? `${data.discount_value}% off` : `Rs. ${data.discount_value} off`;
-            showCouponMsg(`✓ Code applied! ${label} (saving Rs. ${data.discount_amount})`, 'success');
+            showCouponMsg(`✓ ${label} applied — saving Rs. ${data.discount_amount}!`, 'success');
             updateCheckoutTotal();
         } else {
             appliedCoupon = null;
-            showCouponMsg(data.error || 'Invalid coupon code.', 'error');
+            showCouponMsg(data.error || 'Invalid promo code.', 'error');
             updateCheckoutTotal();
         }
-    } catch {
-        showCouponMsg('Connection error. Please try again.', 'error');
-    } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
-    }
+    } catch { showCouponMsg('Connection error. Please try again.', 'error'); }
+    finally { btn.textContent = 'APPLY'; btn.disabled = false; }
 }
 
 function showCouponMsg(text, type) {
@@ -923,323 +1020,85 @@ function updateCheckoutTotal() {
     const discount = appliedCoupon ? appliedCoupon.discount_amount : 0;
     const total = currentCheckoutSubtotal + 250 - discount;
     const discountRow = document.getElementById('discountRow');
-    const chkDiscount = document.getElementById('chkDiscount');
-    const chkTotal = document.getElementById('chkTotal');
-    if (discount > 0 && discountRow && chkDiscount) {
-        discountRow.classList.remove('hidden');
-        chkDiscount.textContent = `- Rs. ${discount}`;
+    if (discount > 0 && discountRow) {
+        discountRow.classList.remove('hidden'); discountRow.classList.add('flex');
+        document.getElementById('chkDiscount').textContent = `- Rs. ${discount.toLocaleString()}`;
     } else if (discountRow) {
-        discountRow.classList.add('hidden');
+        discountRow.classList.add('hidden'); discountRow.classList.remove('flex');
     }
-    if (chkTotal) chkTotal.textContent = `Rs. ${total}`;
+    document.getElementById('chkTotal').textContent = `Rs. ${total.toLocaleString()}`;
 }
 
 async function finishOrder(e) {
-    e.preventDefault(); 
-
+    e.preventDefault();
+    const btn = document.getElementById('placeOrderBtn');
+    btn.textContent = 'PLACING ORDER...'; btn.disabled = true;
     const name = document.getElementById('chkName').value;
     const loggedUser = JSON.parse(localStorage.getItem('user'));
     const email = loggedUser ? loggedUser.email : document.getElementById('chkEmail').value;
     const phone = document.getElementById('chkPhone').value;
     const address = document.getElementById('chkAddress').value;
-
     const itemsToProcess = directBuyItem ? [directBuyItem] : cartItems;
-    const subtotal = itemsToProcess.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const shipping = 250;
+    const subtotal = itemsToProcess.reduce((sum, item) => sum + ((item.sale_price || item.price) * item.quantity), 0);
     const discount = appliedCoupon ? appliedCoupon.discount_amount : 0;
-    const total = subtotal + shipping - discount;
-
     const orderPayload = {
-        name,
-        email,
-        phone,
-        address,
-        subtotal,
-        shipping,
-        discount,
-        total,
+        name, email, phone, address, subtotal, shipping: 250, discount, total: subtotal + 250 - discount,
         coupon_code: appliedCoupon ? appliedCoupon.code : null,
-        items: itemsToProcess.map(item => ({
-            product_id: item.id,
-            product_name: item.name,
-            size: item.cartSize,
-            color: item.color,
-            price: item.price,
-            quantity: item.quantity,
-            image: item.images[0]
-        }))
+        items: itemsToProcess.map(item => ({ product_id: item.id, product_name: item.name, size: item.cartSize, color: item.color, price: item.sale_price || item.price, quantity: item.quantity, image: item.images[0] }))
     };
-
     document.getElementById('checkoutSection').classList.add('hidden-section');
     document.getElementById('orderLoadingState').classList.remove('hidden');
     document.getElementById('orderSuccessState').classList.add('hidden');
     document.getElementById('successSection').classList.remove('hidden-section');
-    window.scrollTo({top: 0});
-
-    replaceTopAppLayer('success', () => {
-        document.getElementById('successSection').classList.add('hidden-section');
-    });
-
+    window.scrollTo({ top: 0 });
+    replaceTopAppLayer('success', () => document.getElementById('successSection').classList.add('hidden-section'));
     try {
         const token = localStorage.getItem('token');
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const res = await fetch(`${API_URL}/orders`, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(orderPayload)
-        });
-
+        const res = await fetch(`${API_URL}/orders`, { method: 'POST', headers, body: JSON.stringify(orderPayload) });
         if (res.ok) {
             const data = await res.json();
-            const orderIdEl = document.getElementById('successOrderId');
-            if (orderIdEl) orderIdEl.textContent = '#' + data.orderId;
             appliedCoupon = null;
             setTimeout(() => {
                 document.getElementById('orderLoadingState').classList.add('hidden');
-                document.getElementById('orderSuccessState').classList.remove('hidden');
-                document.getElementById('orderSuccessState').style.animation = 'fadeInFade 0.4s ease-out forwards';
+                const successState = document.getElementById('orderSuccessState');
+                successState.classList.remove('hidden');
+                const orderIdEl = document.getElementById('successOrderId');
+                if (orderIdEl) orderIdEl.textContent = '#' + data.orderId;
+                launchConfetti();
             }, 1000);
         } else {
             const errData = await res.json();
-            alert('Failed to register order: ' + errData.error);
+            alert('Failed to place order: ' + errData.error);
             goBack();
         }
-    } catch (err) {
-        alert('Connectivity issue with central database server');
-        goBack();
+    } catch { alert('Connection error. Please check your internet and try again.'); goBack(); }
+    finally { btn.textContent = 'PLACE ORDER'; btn.disabled = false; }
+}
+
+function launchConfetti() {
+    const container = document.getElementById('confettiContainer');
+    if (!container) return;
+    const colors = ['#000', '#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+    for (let i = 0; i < 40; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.style.cssText = `left:${Math.random() * 100}%;background:${colors[Math.floor(Math.random() * colors.length)]};animation-delay:${Math.random() * 0.8}s;animation-duration:${1.2 + Math.random() * 0.8}s;width:${6 + Math.random() * 6}px;height:${6 + Math.random() * 6}px;border-radius:${Math.random() > 0.5 ? '50%' : '2px'}`;
+        container.appendChild(piece);
     }
+    setTimeout(() => { container.innerHTML = ''; }, 3000);
 }
 
 function shopAgain() {
     cartItems = [];
     directBuyItem = null;
     updateCartUI();
-    goBack(); 
-    resetHomeLogic(false); 
+    goBack();
+    resetHomeLogic(false);
 }
 
-let activeProductImages = [];
-function showDetail(id) {
-    savedHomeScroll = window.scrollY; 
-    selectedSize = 'M';
-    const p = products.find(x => x.id === id);
-    activeProductImages = p.images;
-
-    const content = document.getElementById('detailContent');
-    document.getElementById('detailSection').classList.remove('hidden-section');
-    window.scrollTo({top: 0});
-
-    pushAppLayer('detail', () => {
-        document.getElementById('detailSection').classList.add('hidden-section');
-        setTimeout(() => window.scrollTo({ top: savedHomeScroll, behavior: 'instant' }), 0);
-    });
-
-    content.innerHTML = `
-        <div class="space-y-2 md:space-y-3 w-full">
-            <div class="aspect-[3/4] bg-gray-100 flex items-center justify-center relative overflow-hidden cursor-pointer rounded border border-gray-200 group no-click-effect" 
-                ontouchstart="detailTouchStart(event)" 
-                ontouchend="detailTouchEnd(event)"
-                onclick="detailClick(event)">
-
-                <div id="detail-img-counter" class="absolute top-3 right-3 md:top-4 md:right-4 bg-black/60 text-white text-[10px] md:text-xs px-2 py-1 rounded font-bold tracking-widest z-20 backdrop-blur-sm shadow border border-white/20">1/${activeProductImages.length}</div>
-
-                <div class="absolute inset-0 skeleton-loader rounded z-0"></div>
-                <img id="mainDetailImg" data-index="0" src="${activeProductImages[0]}" class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 opacity-0 relative z-10" onload="this.classList.remove('opacity-0'); this.previousElementSibling.style.display='none';">
-
-                <div class="absolute bottom-3 right-3 md:bottom-4 md:right-4 bg-white/80 text-black w-8 h-8 md:w-10 md:h-10 flex justify-center items-center rounded-full shadow-lg hover:bg-white hover:scale-110 transition z-20"><i class="fa-solid fa-expand text-sm md:text-lg"></i></div>
-            </div>
-            <div class="flex gap-2 md:gap-3 justify-start">
-                <div class="w-14 md:w-20 aspect-[3/4] bg-gray-100 border border-gray-200 cursor-pointer hover:border-black transition relative overflow-hidden" onclick="setMainImg(0)">
-                    <div class="absolute inset-0 skeleton-loader z-0"></div>
-                    <img src="${activeProductImages[0]}" class="w-full h-full object-cover opacity-0 transition-opacity duration-300 relative z-10" onload="this.classList.remove('opacity-0'); this.previousElementSibling.style.display='none';">
-                </div>
-                <div class="w-14 md:w-20 aspect-[3/4] bg-gray-100 border border-gray-200 cursor-pointer hover:border-black transition relative overflow-hidden" onclick="setMainImg(1)">
-                    <div class="absolute inset-0 skeleton-loader z-0"></div>
-                    <img src="${activeProductImages[1]}" class="w-full h-full object-cover opacity-0 transition-opacity duration-300 relative z-10" onload="this.classList.remove('opacity-0'); this.previousElementSibling.style.display='none';">
-                </div>
-                <div class="w-14 md:w-20 aspect-[3/4] bg-gray-100 border border-gray-200 cursor-pointer hover:border-black transition relative overflow-hidden" onclick="setMainImg(2)">
-                    <div class="absolute inset-0 skeleton-loader z-0"></div>
-                    <img src="${activeProductImages[2]}" class="w-full h-full object-cover opacity-0 transition-opacity duration-300 relative z-10" onload="this.classList.remove('opacity-0'); this.previousElementSibling.style.display='none';">
-                </div>
-            </div>
-        </div>
-
-        <div class="flex flex-col justify-center py-2 md:py-0 px-2 md:px-0">
-            <p class="text-[10px] md:text-[11px] font-bold text-gray-400 tracking-widest mb-1 md:mb-2 uppercase">${p.saleType || (p.gender + ' / ' + p.cat)}</p>
-            <h2 class="logo-font text-2xl md:text-4xl font-bold mb-1.5 md:mb-2 uppercase tracking-wide leading-tight text-gray-900">${p.name}</h2>
-            <p class="text-lg md:text-2xl font-bold mb-2 md:mb-3 text-black">Rs. ${p.price}</p>
-            <p class="text-[12px] md:text-sm text-gray-500 font-medium mb-3 md:mb-5 leading-relaxed">${p.desc}</p>
-
-            <div class="space-y-3 md:space-y-5 mb-4 md:mb-6 border-t border-b py-3 md:py-5 border-gray-200">
-                <div>
-                    <p class="text-[10px] md:text-[11px] font-bold text-gray-400 mb-2 md:mb-3 tracking-widest">SELECT SIZE</p>
-                    <div class="flex gap-2 md:gap-3">
-                        <button onclick="selectSizeBtn(this, 'S')" class="cursor-pointer border border-gray-300 bg-white text-black w-10 h-10 md:w-12 md:h-12 text-xs md:text-sm font-bold hover:border-black transition">S</button>
-                        <button onclick="selectSizeBtn(this, 'M')" class="cursor-pointer border border-black bg-black text-white w-10 h-10 md:w-12 md:h-12 text-xs md:text-sm font-bold hover:border-black transition">M</button>
-                        <button onclick="selectSizeBtn(this, 'L')" class="cursor-pointer border border-gray-300 bg-white text-black w-10 h-10 md:w-12 md:h-12 text-xs md:text-sm font-bold hover:border-black transition">L</button>
-                        <button onclick="selectSizeBtn(this, 'XL')" class="cursor-pointer border border-gray-300 bg-white text-black w-10 h-10 md:w-12 md:h-12 text-xs md:text-sm font-bold hover:border-black transition">XL</button>
-                    </div>
-                </div>
-                <div>
-                    <p class="text-[10px] md:text-[11px] font-bold text-gray-400 tracking-widest flex items-center">
-                        COLOR: <span class="text-black ml-2 text-xs md:text-sm font-bold">${p.color}</span>
-                        <span class="inline-block w-4 h-4 md:w-5 md:h-5 rounded-full ml-2 md:ml-3 border border-gray-300 shadow-sm" style="background-color: ${p.colorHex};"></span>
-                    </p>
-                </div>
-            </div>
-
-            <div class="flex flex-col gap-2 md:gap-4">
-                <button onclick="addCart(${p.id})" class="cursor-pointer w-full border border-black bg-white text-black py-3 md:py-4 font-bold text-[11px] md:text-xs tracking-widest uppercase hover:bg-gray-100 transition-colors duration-300">Add to Cart</button>
-                <button onclick="buyNow(${p.id})" class="cursor-pointer w-full bg-black text-white py-3 md:py-4 font-bold text-[11px] md:text-xs tracking-widest uppercase hover:bg-gray-800 transition-colors duration-300">Buy Now</button>
-            </div>
-        </div>
-    `;
-}
-
-function hideDetail() { goBack(); }
-
-function selectSizeBtn(btn, size) {
-    const btns = btn.parentElement.querySelectorAll('button');
-    btns.forEach(b => { b.classList.remove('bg-black', 'text-white'); b.classList.add('text-black', 'bg-white'); });
-    btn.classList.remove('text-black', 'bg-white');
-    btn.classList.add('bg-black', 'text-white');
-    selectedSize = size;
-}
-
-let currentLightboxIndex = 0;
-let lightboxScale = 1;
-
-function setMainImg(index, direction = 0) {
-    const mainImg = document.getElementById('mainDetailImg');
-
-    if (direction !== 0) {
-        mainImg.style.transition = 'transform 0.25s ease-out, opacity 0.25s ease-out';
-        mainImg.style.opacity = '0';
-        mainImg.style.transform = direction > 0 ? 'translateX(-30px)' : 'translateX(30px)';
-
-        setTimeout(() => {
-            mainImg.src = activeProductImages[index];
-            mainImg.setAttribute('data-index', index);
-            mainImg.style.transition = 'none';
-            mainImg.style.transform = direction > 0 ? 'translateX(30px)' : 'translateX(-30px)';
-            void mainImg.offsetWidth;
-
-            mainImg.style.transition = 'transform 0.25s ease-out, opacity 0.25s ease-out';
-            mainImg.style.opacity = '1';
-            mainImg.style.transform = 'translateX(0)';
-        }, 250);
-    } else {
-        mainImg.style.transition = 'opacity 0.2s ease';
-        mainImg.style.opacity = '0';
-        setTimeout(() => {
-            mainImg.src = activeProductImages[index];
-            mainImg.setAttribute('data-index', index);
-            mainImg.style.opacity = '1';
-        }, 200);
-    }
-
-    const counter = document.getElementById('detail-img-counter');
-    if (counter) counter.innerText = `${index + 1}/${activeProductImages.length}`;
-}
-
-function openLightboxFromDetail() {
-    const index = parseInt(document.getElementById('mainDetailImg').getAttribute('data-index'));
-    openLightbox(index);
-}
-
-function openLightbox(index) {
-    currentLightboxIndex = index;
-    lightboxScale = 1;
-    document.getElementById('lightbox').classList.remove('hidden-section');
-    updateLightboxImg();
-    pushAppLayer('lightbox', () => document.getElementById('lightbox').classList.add('hidden-section'));
-}
-
-function closeLightbox() { goBack(); }
-
-function changeLightboxImg(step) {
-    currentLightboxIndex += step;
-    if (currentLightboxIndex < 0) currentLightboxIndex = activeProductImages.length - 1;
-    if (currentLightboxIndex >= activeProductImages.length) currentLightboxIndex = 0;
-    lightboxScale = 1; 
-    updateLightboxImg(step);
-}
-
-function updateLightboxImg(direction = 0) {
-    const img = document.getElementById('lightbox-img');
-    const loader = document.getElementById('lightbox-loader');
-
-    if (direction !== 0) {
-        loader.style.display = 'flex';
-        img.style.transition = 'transform 0.25s ease-out, opacity 0.25s ease-out';
-        img.style.opacity = '0';
-        img.style.transform = direction > 0 ? `scale(${lightboxScale}) translateX(-50px)` : `scale(${lightboxScale}) translateX(50px)`;
-
-        setTimeout(() => {
-            img.src = activeProductImages[currentLightboxIndex];
-            img.style.transition = 'none';
-            img.style.transform = direction > 0 ? `scale(${lightboxScale}) translateX(50px)` : `scale(${lightboxScale}) translateX(-50px)`;
-            void img.offsetWidth;
-
-            img.style.transition = 'transform 0.25s ease-out, opacity 0.25s ease-out';
-            img.style.opacity = '1';
-            img.style.transform = `scale(${lightboxScale}) translateX(0)`;
-        }, 250);
-    } else {
-        loader.style.display = 'flex';
-        img.style.transition = 'opacity 0.2s ease';
-        img.style.opacity = '0';
-        setTimeout(() => {
-            img.src = activeProductImages[currentLightboxIndex];
-            img.style.transform = `scale(${lightboxScale})`;
-            img.style.opacity = '1';
-        }, 200);
-    }
-
-    const counter = document.getElementById('lightbox-counter');
-    if (counter) counter.innerText = `${currentLightboxIndex + 1}/${activeProductImages.length}`;
-}
-
-let detailTouchStartX = 0;
-let detailTouchStartY = 0;
-let isDetailSwiped = false;
-
-function detailTouchStart(e) {
-    detailTouchStartX = e.changedTouches[0].screenX;
-    detailTouchStartY = e.changedTouches[0].screenY;
-    isDetailSwiped = false;
-}
-
-function detailTouchEnd(e) {
-    let detailTouchEndX = e.changedTouches[0].screenX;
-    let detailTouchEndY = e.changedTouches[0].screenY;
-
-    let diffX = detailTouchStartX - detailTouchEndX;
-    let diffY = detailTouchStartY - detailTouchEndY;
-
-    if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY)) {
-        isDetailSwiped = true;
-        if (diffX > 0) changeDetailImg(1);
-        else changeDetailImg(-1);
-    }
-}
-
-function detailClick(e) {
-    if (!isDetailSwiped) openLightboxFromDetail();
-    isDetailSwiped = false;
-}
-
-function changeDetailImg(step) {
-    const mainImg = document.getElementById('mainDetailImg');
-    let currentIndex = parseInt(mainImg.getAttribute('data-index'));
-    currentIndex += step;
-    if (currentIndex < 0) currentIndex = activeProductImages.length - 1;
-    if (currentIndex >= activeProductImages.length) currentIndex = 0;
-    setMainImg(currentIndex, step);
-}
-
+// ─── My Orders ────────────────────────────────────────────────────────────────
 function showMyOrders() {
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) { toggleAuth(); return; }
@@ -1247,15 +1106,10 @@ function showMyOrders() {
     section.classList.remove('hidden-section');
     const close = () => section.classList.add('hidden-section');
     const isMenuOpen = !document.getElementById('sidebar').classList.contains('-translate-x-full');
-    if (isMenuOpen) {
-        document.getElementById('sidebar').classList.add('-translate-x-full');
-        replaceTopAppLayer('myOrders', close);
-    } else {
-        pushAppLayer('myOrders', close);
-    }
+    if (isMenuOpen) { document.getElementById('sidebar').classList.add('-translate-x-full'); replaceTopAppLayer('myOrders', close); }
+    else pushAppLayer('myOrders', close);
     loadMyOrders();
 }
-
 function hideMyOrders() { goBack(); }
 
 async function loadMyOrders() {
@@ -1266,194 +1120,300 @@ async function loadMyOrders() {
     document.getElementById('myOrdersList').classList.add('hidden');
     try {
         const res = await fetch(`${API_URL}/my-orders`, { headers: { 'Authorization': `Bearer ${token}` } });
-        const allOrders = await res.json();
-        const orders = allOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled');
+        const orders = await res.json();
         document.getElementById('myOrdersLoading').classList.add('hidden');
-        if (!orders.length) {
-            document.getElementById('myOrdersEmpty').classList.remove('hidden');
-            return;
-        }
+        if (!orders.length) { document.getElementById('myOrdersEmpty').classList.remove('hidden'); return; }
         const list = document.getElementById('myOrdersList');
         list.classList.remove('hidden');
         list.innerHTML = orders.map(o => {
             const items = JSON.parse(o.items || '[]');
-            const statusColor = o.status === 'Shipped' ? 'text-blue-600 bg-blue-50' : 'text-yellow-600 bg-yellow-50';
-            const statusIcon = o.status === 'Shipped' ? 'fa-truck' : 'fa-clock';
+            const statusMap = { Pending: 'status-pending', Shipped: 'status-shipped', Delivered: 'status-delivered', Cancelled: 'status-cancelled' };
+            const iconMap = { Pending: 'fa-clock', Shipped: 'fa-truck', Delivered: 'fa-circle-check', Cancelled: 'fa-xmark' };
             const date = new Date(o.created_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
-            const canCancel = o.status === 'Pending';
-            return `
-            <div class="bg-white border rounded-lg overflow-hidden shadow-sm">
+            return `<div class="bg-white border rounded-lg overflow-hidden shadow-sm">
                 <div class="flex items-center justify-between px-5 py-4 border-b">
-                    <div>
-                        <p class="text-[10px] text-gray-400 tracking-widest uppercase">Order #${o.id}</p>
-                        <p class="text-[11px] text-gray-400">${date}</p>
-                    </div>
-                    <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wider uppercase ${statusColor}">
-                        <i class="fa-solid ${statusIcon} text-[10px]"></i> ${o.status}
-                    </span>
+                    <div><p class="text-[10px] text-gray-400 tracking-widest uppercase font-bold">Order #${o.id}</p><p class="text-[11px] text-gray-400 mt-0.5">${date}</p></div>
+                    <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-bold tracking-wider uppercase ${statusMap[o.status] || ''} border"><i class="fa-solid ${iconMap[o.status] || 'fa-circle'}"></i> ${o.status}</span>
                 </div>
                 <div class="px-5 py-3 space-y-2">
-                    ${items.map(item => `
-                    <div class="flex justify-between items-center text-xs">
-                        <span class="text-gray-700 font-medium">${item.product_name || item.name || 'Item'} <span class="text-gray-400">× ${item.quantity || item.qty || 1}</span></span>
-                        <span class="font-bold">Rs. ${((item.price || 0) * (item.quantity || item.qty || 1)).toLocaleString()}</span>
-                    </div>`).join('')}
+                    ${items.map(item => `<div class="flex justify-between text-xs"><span class="text-gray-700">${item.product_name} <span class="text-gray-400">×${item.quantity}</span> <span class="text-gray-400 text-[10px]">(${item.size})</span></span><span class="font-bold">Rs. ${(item.price * item.quantity).toLocaleString()}</span></div>`).join('')}
                 </div>
-                <div class="flex justify-between items-center px-5 py-3 bg-gray-50 border-t">
+                <div class="flex justify-between px-5 py-3 bg-gray-50 border-t">
                     <span class="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Total</span>
                     <span class="font-bold text-sm">Rs. ${(o.total || 0).toLocaleString()}</span>
                 </div>
-                ${canCancel ? `
-                <div class="px-5 py-3 border-t">
-                    <button onclick="cancelOrder(${o.id})" class="w-full border border-red-500 text-red-500 hover:bg-red-500 hover:text-white py-2.5 text-[11px] font-bold tracking-widest uppercase transition rounded">
-                        <i class="fa-solid fa-xmark mr-1"></i> Cancel Order
-                    </button>
-                </div>` : ''}
+                ${o.status === 'Pending' ? `<div class="px-5 py-3 border-t"><button onclick="cancelOrder(${o.id})" class="w-full border border-red-400 text-red-500 hover:bg-red-500 hover:text-white py-2.5 text-[11px] font-bold tracking-widest uppercase transition cursor-pointer rounded-sm"><i class="fa-solid fa-xmark mr-1"></i>Cancel Order</button></div>` : ''}
             </div>`;
         }).join('');
-    } catch (e) {
-        document.getElementById('myOrdersLoading').classList.add('hidden');
-        document.getElementById('myOrdersEmpty').classList.remove('hidden');
-    }
+    } catch { document.getElementById('myOrdersLoading').classList.add('hidden'); document.getElementById('myOrdersEmpty').classList.remove('hidden'); }
 }
 
 async function cancelOrder(orderId) {
-    if (!confirm('Are you sure you want to cancel this order?')) return;
+    if (!confirm('Cancel this order?')) return;
     const token = localStorage.getItem('token');
     try {
-        const res = await fetch(`${API_URL}/my-orders/${orderId}/cancel`, {
-            method: 'PUT',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-            showToast('Order cancelled', 'fa-xmark');
-            loadMyOrders();
-        } else {
-            const d = await res.json();
-            alert(d.error || 'Could not cancel order.');
-        }
-    } catch (e) {
-        alert('Connection error.');
-    }
+        const res = await fetch(`${API_URL}/my-orders/${orderId}/cancel`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) { showToast('Order cancelled', 'fa-xmark', 'red'); loadMyOrders(); }
+        else { const d = await res.json(); alert(d.error || 'Could not cancel.'); }
+    } catch { alert('Connection error.'); }
 }
 
+// ─── Admin Panel ──────────────────────────────────────────────────────────────
 function showAdminPanel() {
     const isMenuOpen = !document.getElementById('sidebar').classList.contains('-translate-x-full');
-    const adminPanel = document.getElementById('adminSection');
-    adminPanel.classList.remove('hidden-section');
+    const panel = document.getElementById('adminSection');
+    panel.classList.remove('hidden-section');
+    const closeAdmin = () => panel.classList.add('hidden-section');
+    if (isMenuOpen) { document.getElementById('sidebar').classList.add('-translate-x-full'); replaceTopAppLayer('admin', closeAdmin); }
+    else pushAppLayer('admin', closeAdmin);
     loadAdminDashboard();
     loadAdminCoupons();
-    const closeAdmin = () => adminPanel.classList.add('hidden-section');
+    loadAdminProducts();
+    loadAdminCustomers();
+}
+function hideAdminPanel() { goBack(); }
 
-    if (isMenuOpen) {
-        document.getElementById('sidebar').classList.add('-translate-x-full');
-        replaceTopAppLayer('admin', closeAdmin);
-    } else {
-        pushAppLayer('admin', closeAdmin);
-    }
+function switchAdminTab(tab) {
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.getElementById('admin-' + tab).classList.add('active');
 }
 
-function hideAdminPanel() { goBack(); }
+function filterOrdersByStatus() {
+    const val = document.getElementById('orderStatusFilter').value;
+    const rows = document.querySelectorAll('#adminOrdersTable tr');
+    rows.forEach(row => {
+        if (val === 'All') { row.style.display = ''; return; }
+        const statusCell = row.querySelector('td:nth-child(5)');
+        if (statusCell && statusCell.textContent.trim().includes(val)) row.style.display = '';
+        else if (statusCell) row.style.display = 'none';
+    });
+}
 
 async function loadAdminDashboard() {
     const token = localStorage.getItem('token');
-    if (!token) return logout();
-
+    if (!token) return;
     try {
-        const orderRes = await fetch(`${API_URL}/admin/orders`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const [orderRes, statsRes] = await Promise.all([
+            fetch(`${API_URL}/admin/orders`, { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch(`${API_URL}/admin/stats`, { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+        if (!orderRes.ok || !statsRes.ok) return;
         const orders = await orderRes.json();
-
-        const statsRes = await fetch(`${API_URL}/admin/stats`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
         const stats = await statsRes.json();
+        allAdminOrders = orders;
+        document.getElementById('adminTotalRevenue').innerText = `Rs. ${(stats.revenue || 0).toLocaleString()}`;
+        document.getElementById('adminTotalOrders').innerText = stats.totalOrders || 0;
+        document.getElementById('adminPendingOrders').innerText = stats.pendingOrders || 0;
+        document.getElementById('adminTotalCustomers').innerText = stats.customers || 0;
 
-        if (orderRes.ok && statsRes.ok) {
-            document.getElementById('adminTotalRevenue').innerText = `Rs. ${stats.revenue || 0}`;
-            document.getElementById('adminTotalOrders').innerText = stats.totalOrders || 0;
-            document.getElementById('adminPendingOrders').innerText = stats.pendingOrders || 0;
-
-            const tableBody = document.getElementById('adminOrdersTable');
-            if (orders.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400 font-bold uppercase tracking-widest">No order logs found in database.</td></tr>`;
-                return;
-            }
-
-            tableBody.innerHTML = orders.map(order => {
-                const itemsParsed = JSON.parse(order.items);
-                const date = new Date(order.created_at).toLocaleString();
-                const itemsListHtml = itemsParsed.map(item => 
-                    `<div class="flex items-center gap-2 mb-1 border-b border-gray-50 pb-1">
-                        <img src="${item.image}" class="w-8 h-10 object-cover rounded shadow-sm">
-                        <span>${item.product_name} (${item.size}) <span class="text-red-500 font-bold font-mono">x${item.quantity}</span></span>
-                     </div>`
-                ).join('');
-
-                const statusColor = order.status === 'Pending' ? 'text-yellow-600 bg-yellow-50'
-                    : order.status === 'Shipped' ? 'text-blue-600 bg-blue-50'
-                    : order.status === 'Cancelled' ? 'text-red-600 bg-red-50'
-                    : 'text-green-600 bg-green-50';
-
-                const actionBtns = order.status === 'Pending' ? `
-                    <button onclick="updateOrderStatus(${order.id}, 'Shipped')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Ship</button>
-                    <button onclick="updateOrderStatus(${order.id}, 'Delivered')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Deliver</button>
-                    <button onclick="updateOrderStatus(${order.id}, 'Cancelled')" class="bg-red-500 hover:bg-red-600 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Cancel</button>`
-                    : order.status === 'Shipped' ? `
-                    <button onclick="updateOrderStatus(${order.id}, 'Delivered')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Mark Delivered</button>`
-                    : order.status === 'Cancelled' ? `
-                    <button onclick="updateOrderStatus(${order.id}, 'Pending')" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Re-Open</button>`
-                    : `<span class="text-[9px] text-gray-300 font-bold uppercase">✓ Completed</span>`;
-
-                const couponBadge = order.coupon_code ? `<span class="ml-2 text-[9px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded font-bold">${order.coupon_code}</span>` : '';
-                const totalDisplay = order.discount > 0 ? `Rs. ${order.total} <span class="text-[10px] text-green-600 font-bold">(-${order.discount})</span>` : `Rs. ${order.total}`;
-
-                return `
-                <tr class="hover:bg-gray-50 transition border-b border-gray-100">
-                    <td class="p-4 font-bold text-gray-400 font-mono">#${order.id}</td>
-                    <td class="p-4 font-medium">
-                        <div class="font-bold text-black uppercase">${order.name}</div>
-                        <div class="text-gray-400 text-[10px] mt-0.5">${order.phone} | ${order.email}</div>
-                        <div class="text-gray-500 text-[10px] mt-1 max-w-[200px] leading-tight">${order.address}</div>
-                        <div class="text-[9px] text-gray-300 font-bold mt-1 uppercase">${date}</div>
-                    </td>
-                    <td class="p-4 max-w-[300px]">${itemsListHtml}</td>
-                    <td class="p-4 font-bold text-black text-[13px]">${totalDisplay}${couponBadge}</td>
-                    <td class="p-4">
-                        <span class="px-2.5 py-1 rounded-full font-bold text-[9px] uppercase ${statusColor}">${order.status}</span>
-                    </td>
-                    <td class="p-4 text-right space-x-1 whitespace-nowrap">${actionBtns}</td>
-                </tr>`;
-            }).join('');
+        const tbody = document.getElementById('adminOrdersTable');
+        if (!orders.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-400 font-bold uppercase tracking-widest text-xs">No orders yet.</td></tr>';
+            return;
         }
-    } catch (err) {
-        alert('Data transmission error during system sync.');
-    }
+        tbody.innerHTML = orders.map(order => {
+            const items = JSON.parse(order.items || '[]');
+            const date = new Date(order.created_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' });
+            const timeStr = new Date(order.created_at).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
+            const statusMap = { Pending: 'status-pending', Shipped: 'status-shipped', Delivered: 'status-delivered', Cancelled: 'status-cancelled' };
+            const actions = order.status === 'Pending'
+                ? `<button onclick="updateOrderStatus(${order.id},'Shipped')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition cursor-pointer uppercase">Ship</button>
+                   <button onclick="updateOrderStatus(${order.id},'Delivered')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition cursor-pointer uppercase">Deliver</button>
+                   <button onclick="updateOrderStatus(${order.id},'Cancelled')" class="bg-red-500 hover:bg-red-600 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition cursor-pointer uppercase">Cancel</button>`
+                : order.status === 'Shipped'
+                ? `<button onclick="updateOrderStatus(${order.id},'Delivered')" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition cursor-pointer uppercase">Delivered</button>`
+                : order.status === 'Cancelled'
+                ? `<button onclick="updateOrderStatus(${order.id},'Pending')" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition cursor-pointer uppercase">Re-Open</button>`
+                : `<span class="text-[9px] text-green-500 font-bold uppercase">✓ Done</span>`;
+            const totalDisplay = order.discount > 0 ? `Rs. ${order.total} <span class="text-green-600 font-bold text-[9px] ml-1">(-${order.discount})</span>` : `Rs. ${order.total}`;
+            return `<tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                <td class="p-4 font-bold text-gray-400 font-mono text-[11px]">#${order.id}<br><span class="text-[9px] text-gray-300">${date} ${timeStr}</span></td>
+                <td class="p-4"><div class="font-bold text-black uppercase text-[11px]">${order.name}</div><div class="text-gray-400 text-[10px] mt-0.5">${order.phone}</div><div class="text-gray-500 text-[10px] mt-0.5 max-w-[160px] leading-tight truncate">${order.address}</div></td>
+                <td class="p-4 max-w-[220px]">${items.map(it => `<div class="text-[10px] flex items-center gap-1.5 mb-0.5"><img src="${it.image}" class="w-6 h-7 object-cover rounded"><span>${it.product_name} (${it.size}) <span class="text-red-500 font-bold">×${it.quantity}</span></span></div>`).join('')}</td>
+                <td class="p-4 font-bold text-[12px]">${totalDisplay}${order.coupon_code ? `<div class="text-[9px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded mt-0.5 inline-block font-bold">${order.coupon_code}</div>` : ''}</td>
+                <td class="p-4"><span class="px-2.5 py-1.5 rounded-full font-bold text-[9px] uppercase border ${statusMap[order.status] || ''}">${order.status}</span></td>
+                <td class="p-4 text-right space-x-1 whitespace-nowrap">${actions}</td>
+            </tr>`;
+        }).join('');
+    } catch (e) { console.error(e); }
 }
 
 async function updateOrderStatus(orderId, nextStatus) {
     const token = localStorage.getItem('token');
     try {
         const res = await fetch(`${API_URL}/admin/orders/${orderId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ status: nextStatus })
         });
-        if (res.ok) {
-            showToast(`Status → ${nextStatus}`, 'fa-check');
-            loadAdminDashboard();
-        } else {
-            alert('Failed to update order state.');
-        }
-    } catch (err) {
-        alert('Server validation check failed.');
-    }
+        if (res.ok) { showToast(`Status → ${nextStatus}`, 'fa-check'); loadAdminDashboard(); }
+        else alert('Failed to update order status.');
+    } catch { alert('Connection error.'); }
 }
 
+// ─── Admin: Products ──────────────────────────────────────────────────────────
+async function loadAdminProducts() {
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`${API_URL}/admin/products`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const prods = await res.json();
+        const tbody = document.getElementById('adminProductsTable');
+        if (!prods.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-400 text-xs uppercase tracking-widest">No products found.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = prods.map(p => {
+            const saleDisplay = p.sale_price ? `<span class="text-green-600 font-bold text-xs">Rs. ${p.sale_price}</span><span class="line-through text-gray-400 text-[10px] ml-1">Rs. ${p.price}</span>` : `<span class="text-xs">Rs. ${p.price}</span>`;
+            const unavailCount = (p.unavailable_sizes || []).length;
+            const stockBadge = unavailCount > 0 ? `<span class="text-red-500 text-[9px] font-bold uppercase bg-red-50 px-1.5 py-0.5 rounded">${unavailCount} unavail.</span>` : `<span class="text-green-600 text-[9px] font-bold uppercase bg-green-50 px-1.5 py-0.5 rounded">All in stock</span>`;
+            const activeBadge = p.is_active ? '<span class="text-green-600 text-[9px] font-bold uppercase">Active</span>' : '<span class="text-gray-400 text-[9px] font-bold uppercase">Hidden</span>';
+            const flags = [p.is_best_seller ? '⭐' : '', p.is_new ? '🆕' : '', p.is_flash_sale ? '🔥' : ''].filter(Boolean).join(' ');
+            return `<tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                <td class="p-3">
+                    <div class="flex items-center gap-3">
+                        <img src="${p.images[0] || ''}" class="w-10 h-12 object-cover rounded border" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2248%22><rect fill=%22%23f3f4f6%22 width=%2240%22 height=%2248%22/></svg>'">
+                        <div>
+                            <div class="font-bold text-[11px] uppercase">${p.name}</div>
+                            <div class="text-[9px] text-gray-400">${p.gender} · ${p.category}</div>
+                            ${flags ? `<div class="text-[9px] mt-0.5">${flags}</div>` : ''}
+                        </div>
+                    </div>
+                </td>
+                <td class="p-3 text-[11px]"><span class="bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-bold text-[9px] uppercase">${p.category}</span></td>
+                <td class="p-3">${saleDisplay}</td>
+                <td class="p-3">${p.sale_type ? `<span class="text-[9px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded uppercase">${p.sale_type}</span>` : '<span class="text-[9px] text-gray-300">No sale</span>'}</td>
+                <td class="p-3">${stockBadge}</td>
+                <td class="p-3">${activeBadge}</td>
+                <td class="p-3 text-right whitespace-nowrap space-x-1">
+                    <button onclick="showEditProductModal(${p.id})" class="bg-gray-800 hover:bg-black text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition cursor-pointer uppercase">Edit</button>
+                    <button onclick="toggleProductActive(${p.id})" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-[9px] py-1.5 px-2.5 rounded transition cursor-pointer uppercase">${p.is_active ? 'Hide' : 'Show'}</button>
+                    <button onclick="deleteAdminProduct(${p.id})" class="bg-red-500 hover:bg-red-600 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition cursor-pointer uppercase">Delete</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch (e) { console.error('Failed to load admin products:', e); }
+}
+
+function showAddProductModal() {
+    document.getElementById('productModalTitle').textContent = 'Add New Product';
+    document.getElementById('editProductId').value = '';
+    document.getElementById('pName').value = '';
+    document.getElementById('pGender').value = '';
+    document.getElementById('pCategory').value = '';
+    document.getElementById('pPrice').value = '';
+    document.getElementById('pSalePrice').value = '';
+    document.getElementById('pSaleType').value = '';
+    document.getElementById('pColor').value = '';
+    document.getElementById('pColorHex').value = '#000000';
+    document.getElementById('pDesc').value = '';
+    document.getElementById('pImages').value = '';
+    document.getElementById('pBestSeller').checked = false;
+    document.getElementById('pNewArrival').checked = false;
+    document.getElementById('pFlashSale').checked = false;
+    document.getElementById('pActive').checked = true;
+    document.querySelectorAll('.unav-size-cb').forEach(cb => cb.checked = false);
+    document.getElementById('productModal').classList.remove('hidden-section');
+}
+
+async function showEditProductModal(id) {
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`${API_URL}/admin/products`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const prods = await res.json();
+        const p = prods.find(x => x.id === id);
+        if (!p) { alert('Product not found.'); return; }
+        document.getElementById('productModalTitle').textContent = 'Edit Product';
+        document.getElementById('editProductId').value = p.id;
+        document.getElementById('pName').value = p.name || '';
+        document.getElementById('pGender').value = p.gender || '';
+        document.getElementById('pCategory').value = p.category || '';
+        document.getElementById('pPrice').value = p.price || '';
+        document.getElementById('pSalePrice').value = p.sale_price || '';
+        document.getElementById('pSaleType').value = p.sale_type || '';
+        document.getElementById('pColor').value = p.color || '';
+        document.getElementById('pColorHex').value = p.color_hex || '#000000';
+        document.getElementById('pDesc').value = p.description || '';
+        document.getElementById('pImages').value = (p.images || []).join('\n');
+        document.getElementById('pBestSeller').checked = p.is_best_seller;
+        document.getElementById('pNewArrival').checked = p.is_new;
+        document.getElementById('pFlashSale').checked = p.is_flash_sale;
+        document.getElementById('pActive').checked = p.is_active;
+        const unavail = p.unavailable_sizes || [];
+        document.querySelectorAll('.unav-size-cb').forEach(cb => { cb.checked = unavail.includes(cb.value); });
+        document.getElementById('productModal').classList.remove('hidden-section');
+    } catch (e) { alert('Failed to load product.'); }
+}
+
+function closeProductModal() { document.getElementById('productModal').classList.add('hidden-section'); }
+
+async function saveProduct() {
+    const id = document.getElementById('editProductId').value;
+    const name = document.getElementById('pName').value.trim();
+    const gender = document.getElementById('pGender').value;
+    const category = document.getElementById('pCategory').value;
+    const price = document.getElementById('pPrice').value;
+    if (!name || !gender || !category || !price) { alert('Please fill Name, Gender, Category and Price.'); return; }
+    const imagesRaw = document.getElementById('pImages').value.trim();
+    const images = imagesRaw ? imagesRaw.split('\n').map(s => s.trim()).filter(Boolean) : [];
+    const unavailableSizes = [...document.querySelectorAll('.unav-size-cb:checked')].map(cb => cb.value);
+    const payload = {
+        name, gender, category, price: parseFloat(price),
+        sale_price: document.getElementById('pSalePrice').value ? parseFloat(document.getElementById('pSalePrice').value) : null,
+        sale_type: document.getElementById('pSaleType').value.trim(),
+        color: document.getElementById('pColor').value.trim(),
+        color_hex: document.getElementById('pColorHex').value,
+        description: document.getElementById('pDesc').value.trim(),
+        images, sizes: ['S', 'M', 'L', 'XL'], unavailable_sizes: unavailableSizes,
+        is_best_seller: document.getElementById('pBestSeller').checked,
+        is_new: document.getElementById('pNewArrival').checked,
+        is_flash_sale: document.getElementById('pFlashSale').checked,
+        is_active: document.getElementById('pActive').checked,
+    };
+    const token = localStorage.getItem('token');
+    const btn = document.getElementById('saveProductBtn');
+    btn.textContent = 'Saving...'; btn.disabled = true;
+    try {
+        const url = id ? `${API_URL}/admin/products/${id}` : `${API_URL}/admin/products`;
+        const method = id ? 'PUT' : 'POST';
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) });
+        if (res.ok) {
+            showToast(id ? 'Product updated!' : 'Product created!', 'fa-check');
+            closeProductModal();
+            loadAdminProducts();
+            await loadProducts(); // refresh storefront
+        } else {
+            const d = await res.json();
+            alert(d.error || 'Failed to save product.');
+        }
+    } catch { alert('Connection error.'); }
+    finally { btn.textContent = 'Save Product'; btn.disabled = false; }
+}
+
+async function toggleProductActive(id) {
+    const token = localStorage.getItem('token');
+    try {
+        await fetch(`${API_URL}/admin/products/${id}/toggle`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}` } });
+        showToast('Visibility toggled', 'fa-eye');
+        loadAdminProducts();
+        await loadProducts();
+    } catch { alert('Failed.'); }
+}
+
+async function deleteAdminProduct(id) {
+    if (!confirm('Permanently delete this product? This cannot be undone.')) return;
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`${API_URL}/admin/products/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) {
+            showToast('Product deleted', 'fa-trash', 'red');
+            loadAdminProducts();
+            await loadProducts();
+        }
+    } catch { alert('Failed.'); }
+}
+
+// ─── Admin: Coupons ────────────────────────────────────────────────────────────
 function toggleNewCouponForm() {
     const form = document.getElementById('newCouponForm');
     form.classList.toggle('hidden');
@@ -1471,28 +1431,25 @@ async function loadAdminCoupons() {
         const coupons = await res.json();
         const tbody = document.getElementById('adminCouponsTable');
         if (!coupons.length) {
-            tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-400 text-xs uppercase tracking-widest">No promo codes yet.</td></tr>`;
+            tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-gray-400 text-xs uppercase tracking-widest">No promo codes yet.</td></tr>';
             return;
         }
         tbody.innerHTML = coupons.map(c => {
             const discountStr = c.discount_type === 'percent' ? `${c.discount_value}% off` : `Rs. ${c.discount_value} off`;
-            const activeClass = c.is_active ? 'text-green-600 bg-green-50' : 'text-gray-400 bg-gray-100';
-            return `
-            <tr class="hover:bg-gray-50 transition border-b border-gray-100">
+            const activeClass = c.is_active ? 'text-green-600 bg-green-50 border-green-200' : 'text-gray-400 bg-gray-100 border-gray-200';
+            return `<tr class="hover:bg-gray-50 transition border-b border-gray-100">
                 <td class="p-4 font-mono font-bold text-black tracking-widest text-[11px]">${c.code}</td>
-                <td class="p-4 font-bold text-[12px]">${discountStr}</td>
+                <td class="p-4 font-bold text-xs">${discountStr}</td>
                 <td class="p-4 text-gray-500 text-[11px]">${Number(c.min_order) > 0 ? 'Rs. ' + c.min_order : 'Any'}</td>
                 <td class="p-4 text-gray-500 text-[11px]">${c.usage_count}</td>
-                <td class="p-4"><span class="px-2.5 py-1 rounded-full font-bold text-[9px] uppercase ${activeClass}">${c.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td class="p-4"><span class="px-2.5 py-1 rounded-full font-bold text-[9px] uppercase border ${activeClass}">${c.is_active ? 'Active' : 'Inactive'}</span></td>
                 <td class="p-4 text-right space-x-1 whitespace-nowrap">
-                    <button onclick="toggleAdminCoupon(${c.id})" class="bg-gray-600 hover:bg-gray-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">${c.is_active ? 'Disable' : 'Enable'}</button>
-                    <button onclick="deleteAdminCoupon(${c.id})" class="bg-red-600 hover:bg-red-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition uppercase">Delete</button>
+                    <button onclick="toggleAdminCoupon(${c.id})" class="bg-gray-600 hover:bg-gray-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition cursor-pointer uppercase">${c.is_active ? 'Disable' : 'Enable'}</button>
+                    <button onclick="deleteAdminCoupon(${c.id})" class="bg-red-600 hover:bg-red-700 text-white font-bold text-[9px] py-1.5 px-2.5 rounded transition cursor-pointer uppercase">Delete</button>
                 </td>
             </tr>`;
         }).join('');
-    } catch (e) {
-        console.error('Failed to load coupons:', e);
-    }
+    } catch (e) { console.error(e); }
 }
 
 async function createAdminCoupon() {
@@ -1501,44 +1458,56 @@ async function createAdminCoupon() {
     const discount_type = document.getElementById('newCouponType').value;
     const discount_value = document.getElementById('newCouponValue').value;
     const min_order = document.getElementById('newCouponMin').value || '0';
-    if (!code || !discount_value) { alert('Please fill in Code and Discount Value.'); return; }
+    if (!code || !discount_value) { alert('Fill in Code and Discount Value.'); return; }
     try {
-        const res = await fetch(`${API_URL}/admin/coupons`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ code, discount_type, discount_value, min_order })
-        });
-        const data = await res.json();
-        if (res.ok) {
-            showToast('Coupon created!', 'fa-tag');
-            toggleNewCouponForm();
-            loadAdminCoupons();
-        } else {
-            alert(data.error || 'Failed to create coupon.');
-        }
-    } catch { alert('Server error. Please try again.'); }
+        const res = await fetch(`${API_URL}/admin/coupons`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ code, discount_type, discount_value, min_order }) });
+        if (res.ok) { showToast('Coupon created!', 'fa-tag'); toggleNewCouponForm(); loadAdminCoupons(); }
+        else { const d = await res.json(); alert(d.error || 'Failed.'); }
+    } catch { alert('Server error.'); }
 }
 
 async function toggleAdminCoupon(id) {
     const token = localStorage.getItem('token');
-    try {
-        await fetch(`${API_URL}/admin/coupons/${id}/toggle`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}` } });
-        loadAdminCoupons();
-    } catch { alert('Failed to toggle coupon.'); }
+    try { await fetch(`${API_URL}/admin/coupons/${id}/toggle`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}` } }); loadAdminCoupons(); }
+    catch { alert('Failed.'); }
 }
 
 async function deleteAdminCoupon(id) {
-    if (!confirm('Delete this coupon permanently?')) return;
+    if (!confirm('Delete this coupon?')) return;
     const token = localStorage.getItem('token');
-    try {
-        const res = await fetch(`${API_URL}/admin/coupons/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-        if (res.ok) { showToast('Coupon deleted', 'fa-trash'); loadAdminCoupons(); }
-    } catch { alert('Failed to delete coupon.'); }
+    try { const res = await fetch(`${API_URL}/admin/coupons/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); if (res.ok) { showToast('Deleted', 'fa-trash'); loadAdminCoupons(); } }
+    catch { alert('Failed.'); }
 }
 
+// ─── Admin: Customers ─────────────────────────────────────────────────────────
+async function loadAdminCustomers() {
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`${API_URL}/admin/customers`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const customers = await res.json();
+        const tbody = document.getElementById('adminCustomersTable');
+        if (!customers.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-gray-400 text-xs uppercase tracking-widest">No registered customers yet.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = customers.map(c => {
+            const date = new Date(c.created_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
+            return `<tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                <td class="p-4 font-bold text-[11px] uppercase">${c.name || '—'}</td>
+                <td class="p-4 text-gray-500 text-[11px]">@${c.username || '—'}</td>
+                <td class="p-4 text-[11px]">${c.email}</td>
+                <td class="p-4 text-gray-500 text-[11px]">${c.phone || '—'}</td>
+                <td class="p-4 text-gray-400 text-[10px]">${date}</td>
+            </tr>`;
+        }).join('');
+    } catch (e) { console.error(e); }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
 window.onload = () => {
     updateCartUI();
     syncUserUI();
+    updateWishBadge();
     history.replaceState({ view: 'home', cat: 'Featured', page: 1, search: '' }, '', '');
-    applyFilters(false);
+    loadProducts();
 };
