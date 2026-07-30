@@ -29,11 +29,12 @@ name = "Start application"
 author = "agent"
 
 [workflows.workflow.metadata]
-outputType = "console"
+outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "echo 'Use artifacts/api-server workflow to run Rift Thrift'"
+args = "cd /home/runner/workspace/ecommerce && PORT=8080 node server.js"
+waitForPort = 8080
 
 [[workflows.workflow]]
 name = "Rift Thrift"
