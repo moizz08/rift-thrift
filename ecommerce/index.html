@@ -206,7 +206,7 @@
     <div class="p-5">
         <div class="flex gap-4 mb-5">
             <div class="w-[68px] h-[84px] bg-gray-100 overflow-hidden rounded-sm shrink-0 border border-gray-200">
-                <img id="qaImg" src="" class="w-full h-full object-cover" onerror="this.style.opacity='0.2'">
+                <img id="qaImg" src="" class="w-full h-full object-cover opacity-0 transition-opacity duration-200" onload="this.classList.remove('opacity-0')" onerror="this.classList.add('opacity-0')">
             </div>
             <div class="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
                 <p id="qaPrice" class="font-bold text-xl"></p>

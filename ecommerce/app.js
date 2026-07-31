@@ -143,7 +143,7 @@ function render() {
                     </button>
                     <div class="absolute inset-0 skeleton-loader z-0"></div>
                     <img id="card-img-${p.id}" src="${p.images[0] || ''}" class="absolute inset-0 w-full h-full object-cover transition-all duration-700 group-hover:scale-110 opacity-0 z-10 relative" onload="this.classList.remove('opacity-0'); this.previousElementSibling.style.display='none';" onerror="this.style.display='none'">
-                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-500 z-10"></div>
+                    <div class="absolute inset-0 bg-black/0 transition-colors duration-500 z-10 pointer-events-none"></div>
                     <div id="card-dots-${p.id}" class="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-20 opacity-0 transition-opacity duration-300">
                         ${p.images.map((_, i) => `<div class="card-dot-${p.id} w-1.5 h-1.5 rounded-full ${i === 0 ? 'bg-white' : 'bg-white/50'} transition-all"></div>`).join('')}
                     </div>
@@ -390,12 +390,12 @@ function openAuthFromSidebar() {
         }
         const auth = document.getElementById('authModal');
         auth.classList.remove('hidden-section');
-        switchAuth('login');
+        switchAuth('signup');
         appLayers[appLayers.length - 1] = { id: 'auth', closeFunc: () => auth.classList.add('hidden-section') };
         history.replaceState({ layerId: 'auth' }, '', '#auth');
     } else {
         if (user) { toggleUserDropdown(); return; }
-        openAuthModal('login');
+        openAuthModal('signup');
     }
 }
 
@@ -775,13 +775,15 @@ function flyToWishlist(event, imgUrl) {
 function playCartSound() {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        [[800, 0], [1050, 0.13]].forEach(([freq, delay]) => {
+        // Soft melodious two-note chime (C5 → E5 major third)
+        [[523, 0, 0.12, 0.38], [659, 0.14, 0.10, 0.32]].forEach(([freq, delay, gain, dur]) => {
             const o = ctx.createOscillator(), g = ctx.createGain();
-            o.type = 'sine'; o.frequency.value = freq;
+            o.type = 'sine'; o.frequency.setValueAtTime(freq, ctx.currentTime + delay);
             o.connect(g); g.connect(ctx.destination);
-            g.gain.setValueAtTime(0.22, ctx.currentTime + delay);
-            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.22);
-            o.start(ctx.currentTime + delay); o.stop(ctx.currentTime + delay + 0.22);
+            g.gain.setValueAtTime(0, ctx.currentTime + delay);
+            g.gain.linearRampToValueAtTime(gain, ctx.currentTime + delay + 0.04);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + dur);
+            o.start(ctx.currentTime + delay); o.stop(ctx.currentTime + delay + dur + 0.05);
         });
     } catch(e) {}
 }
@@ -789,13 +791,15 @@ function playCartSound() {
 function playWishlistSound() {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        [[620, 0], [930, 0.16]].forEach(([freq, delay]) => {
+        // Soft heart chime: G4 → B4 → D5 (G major arpeggio) — warm and melodious
+        [[392, 0, 0.10, 0.35], [494, 0.13, 0.09, 0.32], [587, 0.26, 0.08, 0.40]].forEach(([freq, delay, gain, dur]) => {
             const o = ctx.createOscillator(), g = ctx.createGain();
-            o.type = 'sine'; o.frequency.value = freq;
+            o.type = 'sine'; o.frequency.setValueAtTime(freq, ctx.currentTime + delay);
             o.connect(g); g.connect(ctx.destination);
-            g.gain.setValueAtTime(0.18, ctx.currentTime + delay);
-            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.28);
-            o.start(ctx.currentTime + delay); o.stop(ctx.currentTime + delay + 0.28);
+            g.gain.setValueAtTime(0, ctx.currentTime + delay);
+            g.gain.linearRampToValueAtTime(gain, ctx.currentTime + delay + 0.05);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + dur);
+            o.start(ctx.currentTime + delay); o.stop(ctx.currentTime + delay + dur + 0.05);
         });
     } catch(e) {}
 }
@@ -809,7 +813,9 @@ function showQuickAdd(id, event) {
     quickAddEvent = event;
 
     document.getElementById('qaName').textContent = p.name;
-    document.getElementById('qaImg').src = p.images[0] || '';
+    const qaImgEl = document.getElementById('qaImg');
+    qaImgEl.classList.add('opacity-0');
+    qaImgEl.src = p.images[0] || '';
     document.getElementById('qaCategory').textContent = (p.sale_type || (p.gender + ' / ' + p.category)).toUpperCase();
     document.getElementById('qaColorDot').style.background = p.color_hex || '#000';
     document.getElementById('qaColorName').textContent = p.color;
@@ -885,7 +891,7 @@ function toggleWishlist(id, evt) {
     localStorage.setItem('rift_wishlist', JSON.stringify(wishlist));
     updateWishBadge();
     // Update every heart button for this product + animate
-    document.querySelectorAll(`[onclick*="toggleWishlist(${id})"]`).forEach(btn => {
+    document.querySelectorAll(`[onclick*="toggleWishlist(${id}"]`).forEach(btn => {
         const isNowWished = wishlist.includes(id);
         btn.classList.toggle('active', isNowWished);
         btn.classList.toggle('text-red-500', isNowWished);
