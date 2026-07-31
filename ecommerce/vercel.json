@@ -4,6 +4,12 @@
     { "src": "server.js", "use": "@vercel/node" }
   ],
   "routes": [
+    { "src": "/api/(.*)", "dest": "server.js" },
+    { "src": "/app.js", "dest": "server.js" },
+    { "src": "/style.css", "dest": "server.js" },
     { "src": "/(.*)", "dest": "server.js" }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }

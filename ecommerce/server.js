@@ -16,7 +16,9 @@ app.use(express.static(path.join(__dirname)));
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    // Vercel serverless: keep max connections low to avoid exhausting DB pool
+    max: process.env.NODE_ENV === 'production' ? 1 : 10,
 });
 
 const mailer = (process.env.EMAIL_USER && process.env.EMAIL_PASS)
@@ -78,7 +80,7 @@ async function initDB() {
 async function seedAdmin() {
     const adminEmail = 'moiz3996317@gmail.com';
     const hashed = bcrypt.hashSync('moizmoiz08', 10);
-    await pool.query(`DELETE FROM users WHERE role = 'admin'`);
+    // ON CONFLICT DO NOTHING — never overwrite an existing admin (safe on serverless cold starts)
     await pool.query(
         `INSERT INTO users (name, username, email, phone, password, role)
          VALUES ($1, $2, $3, $4, $5, 'admin') ON CONFLICT (email) DO NOTHING`,
