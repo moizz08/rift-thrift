@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-20", "web", "bash", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -20,16 +20,33 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Rift Thrift"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
 
 [workflows.workflow.metadata]
-outputType = "console"
+outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "echo 'Use artifacts/api-server workflow to run Rift Thrift'"
+args = "cd /home/runner/workspace/ecommerce && PORT=8080 node server.js"
+waitForPort = 8080
+
+[[workflows.workflow]]
+name = "Rift Thrift"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd /home/runner/workspace/ecommerce && PORT=8080 node server.js"
+waitForPort = 8080
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -58,3 +75,6 @@ externalPort = 8081
 [[ports]]
 localPort = 8082
 externalPort = 3001
+
+[nix]
+channel = "stable-25_05"

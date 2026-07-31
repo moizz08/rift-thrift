@@ -1,5 +1,5 @@
 // ─── State ─────────────────────────────────────────────────────────────────────
-const API_URL = window.location.origin + '/api';
+const API_URL = '/api'; // relative — works on Replit, Vercel, everywhere
 let products = [];
 let appLayers = [];
 let currentBaseCategory = 'Featured';
@@ -123,15 +123,18 @@ function render() {
         grid.innerHTML = displayItems.map(p => {
             const isWished = wishlist.includes(p.id);
             const displayPrice = p.sale_price ? `<span class="line-through text-gray-400 text-[11px] mr-1">Rs. ${p.price}</span><span class="text-red-500 font-bold text-[14px] md:text-[15px]">Rs. ${p.sale_price}</span>` : `<span class="text-[13px] md:text-[15px] font-bold text-black">Rs. ${p.price}</span>`;
-            const badge = p.is_flash_sale ? `<div class="sale-badge">SALE</div>` : (p.is_new ? `<div class="new-badge">NEW</div>` : '');
-            const bsBadge = p.is_best_seller ? `<div class="bestseller-badge">★ BEST</div>` : '';
+            const badges = [
+                p.is_flash_sale ? `<span class="sale-badge">SALE</span>` : '',
+                p.is_new ? `<span class="new-badge">NEW</span>` : '',
+                p.is_best_seller ? `<span class="bestseller-badge">★ BEST</span>` : '',
+            ].filter(Boolean).join('');
             return `
             <div class="product-card group relative flex flex-col h-full">
                 <div class="aspect-[3/4] bg-gray-100 mb-2 md:mb-3 relative overflow-hidden border cursor-pointer flex-shrink-0"
                     onclick="handleCardClick(event, ${p.id})"
                     ontouchstart="cardTouchStart(event, ${p.id})"
                     ontouchend="cardTouchEnd(event, ${p.id})">
-                    ${badge}${bsBadge}
+                    ${badges ? `<div class="product-badges">${badges}</div>` : ''}
                     <button onclick="event.stopPropagation(); toggleWishlist(${p.id})" class="wish-btn absolute top-2 right-2 z-20 w-8 h-8 flex items-center justify-center bg-white/80 rounded-full shadow hover:scale-110 transition ${isWished ? 'active text-red-500' : 'text-gray-400'}">
                         <i class="fa-${isWished ? 'solid' : 'regular'} fa-heart text-sm"></i>
                     </button>
@@ -142,8 +145,8 @@ function render() {
                         ${p.images.map((_, i) => `<div class="card-dot-${p.id} w-1.5 h-1.5 rounded-full ${i === 0 ? 'bg-white' : 'bg-white/50'} transition-all"></div>`).join('')}
                     </div>
                     <div class="absolute inset-0 hidden md:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-400 z-20">
-                        <button onclick="event.stopPropagation(); showDetail(${p.id})" class="bg-white text-black px-3 py-2 font-bold tracking-widest text-[10px] hover:bg-black hover:text-white transition shadow-lg rounded-sm">VIEW</button>
-                        <button onclick="event.stopPropagation(); addCart(${p.id});" class="bg-white text-black px-3 py-2 font-bold tracking-widest text-[10px] hover:bg-black hover:text-white transition shadow-lg rounded-sm"><i class="fa-solid fa-cart-plus"></i></button>
+                        <button onclick="event.stopPropagation(); showDetail(${p.id})" class="bg-white text-black px-3 py-2 font-bold tracking-widest text-[10px] hover:bg-black hover:text-white active:scale-90 transition shadow-lg rounded-sm">VIEW</button>
+                        <button onclick="event.stopPropagation(); addCart(${p.id}, event);" class="bg-white text-black px-3 py-2 font-bold tracking-widest text-[10px] hover:bg-black hover:text-white active:scale-90 transition shadow-lg rounded-sm"><i class="fa-solid fa-cart-plus"></i></button>
                     </div>
                 </div>
                 <div class="text-center px-1 cursor-pointer flex-1 flex flex-col justify-between" onclick="showDetail(${p.id})">
@@ -152,7 +155,7 @@ function render() {
                         <h3 class="text-[12px] md:text-sm font-bold uppercase mb-1 truncate leading-tight">${p.name}</h3>
                         <div class="mb-1">${displayPrice}</div>
                     </div>
-                    <button onclick="event.stopPropagation(); addCart(${p.id});" class="md:hidden w-full bg-black text-white text-[10px] py-2.5 mt-2 font-bold tracking-[0.2em] uppercase hover:bg-gray-800 active:scale-95 transition-all shadow-sm rounded-sm cursor-pointer flex items-center justify-center gap-1.5">
+                    <button onclick="event.stopPropagation(); addCart(${p.id}, event);" class="md:hidden w-full bg-black text-white text-[10px] py-2.5 mt-2 font-bold tracking-[0.2em] uppercase hover:bg-gray-800 active:scale-95 transition-all shadow-sm rounded-sm cursor-pointer flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-bag-shopping text-[9px]"></i> ADD TO CART
                     </button>
                 </div>
@@ -318,6 +321,7 @@ function resetHomeLogic(isPop = false) {
     clearAllLayers();
     hideAllSections();
     document.getElementById('homeSection').style.display = 'block';
+    document.getElementById('heroBanner').style.display = '';
     applyFilters(false);
     if (!isPop) updateMainState(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -399,16 +403,24 @@ function closeAuthModal() {
     }
 }
 
+// Navbar user icon — show signup first (with "already have an account" link below)
 function toggleAuth() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user) { toggleUserDropdown(); return; }
+    openAuthModal('signup');
+}
+
+// Used by sidebar button and any other place that needs a specific tab
+function openAuthModal(type = 'signup') {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) { toggleUserDropdown(); return; }
     const auth = document.getElementById('authModal');
     if (auth.classList.contains('hidden-section')) {
         auth.classList.remove('hidden-section');
-        switchAuth('login');
+        switchAuth(type);
         pushAppLayer('auth', () => auth.classList.add('hidden-section'));
     } else {
-        goBack();
+        switchAuth(type);
     }
 }
 
@@ -529,6 +541,7 @@ function showPage(page) {
     const isMenuOpen = !document.getElementById('sidebar').classList.contains('-translate-x-full');
     document.getElementById('homeSection').style.display = 'none';
     document.getElementById('infoSection').classList.remove('hidden-section');
+    document.getElementById('heroBanner').style.display = 'none';
     toggleHeaderBackBtn(false);
     const title = document.getElementById('infoTitle');
     const content = document.getElementById('infoContent');
@@ -543,7 +556,11 @@ function showPage(page) {
         content.innerHTML = `<div class="space-y-4"><div class="flex items-center gap-3"><i class="fa-brands fa-instagram text-lg"></i><div><p class="font-bold text-xs tracking-widest">INSTAGRAM</p><a href="https://www.instagram.com/rift_pk" target="_blank" class="text-blue-600 text-sm">@rift_pk</a></div></div><div class="flex items-center gap-3"><i class="fa-brands fa-whatsapp text-lg text-green-600"></i><div><p class="font-bold text-xs tracking-widest">WHATSAPP / PHONE</p><a href="https://wa.me/923001234567" target="_blank" class="text-blue-600 text-sm">+92 300 1234567</a></div></div><div class="flex items-center gap-3"><i class="fa-solid fa-envelope text-lg"></i><div><p class="font-bold text-xs tracking-widest">EMAIL</p><p class="text-sm">support@riftthrift.pk</p></div></div><div class="flex items-center gap-3"><i class="fa-solid fa-location-dot text-lg"></i><div><p class="font-bold text-xs tracking-widest">ADDRESS</p><p class="text-sm">Karachi, Pakistan</p></div></div></div>`;
     }
     window.scrollTo({ top: 0 });
-    const closeInfo = () => { document.getElementById('infoSection').classList.add('hidden-section'); document.getElementById('homeSection').style.display = 'block'; };
+    const closeInfo = () => {
+        document.getElementById('infoSection').classList.add('hidden-section');
+        document.getElementById('homeSection').style.display = 'block';
+        document.getElementById('heroBanner').style.display = '';
+    };
     if (isMenuOpen) {
         document.getElementById('sidebar').classList.add('-translate-x-full');
         replaceTopAppLayer('info', closeInfo);
@@ -571,22 +588,26 @@ function updateCartUI() {
     const cartCountEl = document.getElementById('cartCount');
     if (cartCountEl) cartCountEl.innerText = totalItemsCount > 0 ? `(${totalItemsCount})` : '';
     const list = document.getElementById('cartItemsList');
-    let total = 0;
+    if (!list) return;
+    localStorage.setItem('rift_cart', JSON.stringify(cartItems));
+
     if (cartItems.length === 0) {
         list.innerHTML = `<div class="flex flex-col items-center justify-center mt-16">
             <i class="fa-solid fa-cart-arrow-down text-5xl text-gray-200 mb-4"></i>
             <p class="text-gray-400 text-sm mb-6 font-medium">Your cart is empty</p>
             <button onclick="goBack()" class="bg-black text-white px-8 py-3 text-xs font-bold tracking-widest uppercase hover:bg-gray-800 transition cursor-pointer shadow rounded-sm">Continue Shopping</button>
         </div>`;
-        document.getElementById('cartSubtotal').innerText = 'Rs. 0';
-        document.getElementById('cartTotal').innerText = 'Rs. 0';
+        const sub = document.getElementById('cartSubtotal'); if (sub) sub.innerText = 'Rs. 0';
+        const tot = document.getElementById('cartTotal'); if (tot) tot.innerText = 'Rs. 250';
         return;
     }
+
+    let total = 0;
     list.innerHTML = cartItems.map((item, index) => {
         const rowTotal = (item.sale_price || item.price) * item.quantity;
         total += rowTotal;
         return `<div class="flex gap-3 border-b pb-4">
-            <div class="w-16 h-20 bg-gray-100 border flex-shrink-0 overflow-hidden">
+            <div class="w-16 h-20 bg-gray-100 border flex-shrink-0 overflow-hidden rounded-sm">
                 <img src="${item.images[0]}" class="w-full h-full object-cover" onerror="this.style.opacity='0.3'">
             </div>
             <div class="flex-1 flex flex-col justify-between py-0.5">
@@ -596,31 +617,74 @@ function updateCartUI() {
                 </div>
                 <div class="flex justify-between items-center mt-2">
                     <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 px-2 py-1 rounded-sm">
-                        <button onclick="updateQuantity(${index},-1)" class="text-gray-500 hover:text-black transition cursor-pointer text-xs">${item.quantity === 1 ? '<i class="fa-solid fa-trash-can text-red-400"></i>' : '<i class="fa-solid fa-minus"></i>'}</button>
+                        <button onclick="updateQuantity(${index},-1)" class="text-gray-500 hover:text-black transition cursor-pointer text-xs active:scale-90">${item.quantity === 1 ? '<i class="fa-solid fa-trash-can text-red-400"></i>' : '<i class="fa-solid fa-minus"></i>'}</button>
                         <span class="text-sm font-bold w-4 text-center">${item.quantity}</span>
-                        <button onclick="updateQuantity(${index},1)" class="text-gray-500 hover:text-black transition cursor-pointer text-xs"><i class="fa-solid fa-plus"></i></button>
+                        <button onclick="updateQuantity(${index},1)" class="text-gray-500 hover:text-black transition cursor-pointer text-xs active:scale-90"><i class="fa-solid fa-plus"></i></button>
                     </div>
                     <span class="font-bold text-sm">Rs. ${rowTotal.toLocaleString()}</span>
                 </div>
             </div>
         </div>`;
     }).join('');
-    document.getElementById('cartSubtotal').innerText = `Rs. ${total.toLocaleString()}`;
-    document.getElementById('cartTotal').innerText = `Rs. ${(total + 250).toLocaleString()}`;
+
+    const shipping = total >= 2000 ? 0 : 250;
+    const sub = document.getElementById('cartSubtotal'); if (sub) sub.innerText = `Rs. ${total.toLocaleString()}`;
+    const tot = document.getElementById('cartTotal'); if (tot) tot.innerText = `Rs. ${(total + shipping).toLocaleString()}`;
+    const shipEl = document.getElementById('cartShipping'); if (shipEl) shipEl.innerText = shipping === 0 ? 'FREE 🎉' : 'Rs. 250';
+    const prog = document.getElementById('shippingProgress');
+    if (prog) {
+        prog.classList.remove('hidden');
+        prog.textContent = total >= 2000 ? '✓ Free shipping unlocked!' : `Add Rs. ${(2000 - total).toLocaleString()} more for free shipping`;
+        prog.className = total >= 2000 ? 'text-[10px] font-bold text-green-600 text-center py-1' : 'text-[10px] text-gray-400 text-center py-1';
+    }
 }
 
-function addCart(id) {
+function addCart(id, event) {
     const p = products.find(x => x.id === id);
     if (!p) return;
     const existing = cartItems.findIndex(item => item.id === id && item.cartSize === selectedSize);
     if (existing > -1) { cartItems[existing].quantity += 1; }
     else { cartItems.push({ ...p, cartSize: selectedSize, quantity: 1 }); }
     updateCartUI();
-    document.querySelectorAll('.cart-icon-btn').forEach(btn => {
-        btn.classList.remove('cart-shake'); void btn.offsetWidth; btn.classList.add('cart-shake');
-        setTimeout(() => btn.classList.remove('cart-shake'), 700);
-    });
+    flyToCart(event);
     showToast('Added to Cart', 'fa-bag-shopping');
+}
+
+function flyToCart(event) {
+    const cartIcons = document.querySelectorAll('.cart-icon-btn');
+    if (!cartIcons.length) return;
+    // pick the visible cart icon
+    let cartEl = null;
+    cartIcons.forEach(el => { if (el.offsetParent !== null) cartEl = el; });
+    if (!cartEl) cartEl = cartIcons[0];
+    const cartRect = cartEl.getBoundingClientRect();
+
+    let startX = window.innerWidth / 2;
+    let startY = window.innerHeight / 3;
+    if (event) {
+        if (event.clientX) { startX = event.clientX; startY = event.clientY; }
+        else if (event.touches && event.touches[0]) { startX = event.touches[0].clientX; startY = event.touches[0].clientY; }
+        else if (event.changedTouches && event.changedTouches[0]) { startX = event.changedTouches[0].clientX; startY = event.changedTouches[0].clientY; }
+    }
+
+    const dot = document.createElement('div');
+    dot.style.cssText = `position:fixed;width:14px;height:14px;background:#000;border-radius:50%;
+        left:${startX}px;top:${startY}px;transform:translate(-50%,-50%) scale(1);
+        z-index:99999;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.4);
+        transition:left 0.52s cubic-bezier(0.25,0.8,0.4,1),top 0.52s cubic-bezier(0.25,0.8,0.4,1),transform 0.52s ease,opacity 0.52s ease;`;
+    document.body.appendChild(dot);
+    void dot.offsetWidth;
+    dot.style.left = `${cartRect.left + cartRect.width / 2}px`;
+    dot.style.top = `${cartRect.top + cartRect.height / 2}px`;
+    dot.style.transform = 'translate(-50%,-50%) scale(0.2)';
+    dot.style.opacity = '0';
+    setTimeout(() => {
+        dot.remove();
+        cartIcons.forEach(btn => {
+            btn.classList.remove('cart-shake'); void btn.offsetWidth; btn.classList.add('cart-shake');
+            setTimeout(() => btn.classList.remove('cart-shake'), 700);
+        });
+    }, 520);
 }
 
 function updateQuantity(index, change) {
@@ -632,18 +696,23 @@ function updateQuantity(index, change) {
 // ─── Wishlist ──────────────────────────────────────────────────────────────────
 function toggleWishlist(id) {
     const idx = wishlist.indexOf(id);
-    if (idx > -1) { wishlist.splice(idx, 1); showToast('Removed from Wishlist', 'fa-heart-crack', 'red'); }
-    else { wishlist.push(id); showToast('Added to Wishlist ♥', 'fa-heart'); }
+    const adding = idx === -1;
+    if (adding) { wishlist.push(id); showToast('Added to Wishlist ♥', 'fa-heart'); }
+    else { wishlist.splice(idx, 1); showToast('Removed from Wishlist', 'fa-heart-crack', 'red'); }
     localStorage.setItem('rift_wishlist', JSON.stringify(wishlist));
     updateWishBadge();
-    // Update heart icons in current render
-    const wishBtns = document.querySelectorAll(`[onclick*="toggleWishlist(${id})"]`);
-    wishBtns.forEach(btn => {
+    // Update every heart button for this product + animate
+    document.querySelectorAll(`[onclick*="toggleWishlist(${id})"]`).forEach(btn => {
         const isNowWished = wishlist.includes(id);
         btn.classList.toggle('active', isNowWished);
         btn.classList.toggle('text-red-500', isNowWished);
         btn.classList.toggle('text-gray-400', !isNowWished);
         btn.innerHTML = `<i class="fa-${isNowWished ? 'solid' : 'regular'} fa-heart text-sm"></i>`;
+        // Animate
+        btn.classList.remove('heart-pop');
+        void btn.offsetWidth;
+        btn.classList.add('heart-pop');
+        setTimeout(() => btn.classList.remove('heart-pop'), 450);
     });
 }
 
@@ -778,8 +847,8 @@ function showDetail(id) {
             </div>
 
             <div class="flex flex-col gap-2.5">
-                <button onclick="addCart(${p.id})" class="cursor-pointer w-full border border-black bg-white text-black py-3.5 md:py-4 font-bold text-[11px] md:text-xs tracking-widest uppercase hover:bg-gray-100 transition-colors duration-300 rounded-sm">ADD TO CART</button>
-                <button onclick="buyNow(${p.id})" class="cursor-pointer w-full bg-black text-white py-3.5 md:py-4 font-bold text-[11px] md:text-xs tracking-widest uppercase hover:bg-gray-800 transition-colors duration-300 rounded-sm shadow-md">BUY NOW →</button>
+                <button onclick="addCart(${p.id}, event)" class="cursor-pointer w-full border border-black bg-white text-black py-3.5 md:py-4 font-bold text-[11px] md:text-xs tracking-widest uppercase hover:bg-gray-100 active:scale-95 transition-all duration-200 rounded-sm">ADD TO CART</button>
+                <button onclick="buyNow(${p.id})" class="cursor-pointer w-full bg-black text-white py-3.5 md:py-4 font-bold text-[11px] md:text-xs tracking-widest uppercase hover:bg-gray-800 active:scale-95 transition-all duration-200 rounded-sm shadow-md">BUY NOW →</button>
             </div>
             ${p.is_best_seller ? '<p class="text-center text-[10px] text-gray-400 mt-3 tracking-widest"><i class="fa-solid fa-star text-yellow-500 mr-1"></i>BEST SELLER — Loved by our customers</p>' : ''}
         </div>
@@ -962,8 +1031,11 @@ function proceedToCheckout(isDirect = false) {
     }).join('');
 
     currentCheckoutSubtotal = subtotal;
+    const chkShip = subtotal >= 2000 ? 0 : 250;
     document.getElementById('chkSubtotal').innerText = `Rs. ${subtotal.toLocaleString()}`;
-    document.getElementById('chkTotal').innerText = `Rs. ${(subtotal + 250).toLocaleString()}`;
+    document.getElementById('chkTotal').innerText = `Rs. ${(subtotal + chkShip).toLocaleString()}`;
+    const chkShipEl = document.getElementById('chkShipping');
+    if (chkShipEl) chkShipEl.innerText = chkShip === 0 ? 'FREE 🎉' : 'Rs. 250';
 
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
@@ -1018,7 +1090,8 @@ function showCouponMsg(text, type) {
 
 function updateCheckoutTotal() {
     const discount = appliedCoupon ? appliedCoupon.discount_amount : 0;
-    const total = currentCheckoutSubtotal + 250 - discount;
+    const shipping = currentCheckoutSubtotal >= 2000 ? 0 : 250;
+    const total = currentCheckoutSubtotal + shipping - discount;
     const discountRow = document.getElementById('discountRow');
     if (discount > 0 && discountRow) {
         discountRow.classList.remove('hidden'); discountRow.classList.add('flex');
@@ -1033,16 +1106,19 @@ async function finishOrder(e) {
     e.preventDefault();
     const btn = document.getElementById('placeOrderBtn');
     btn.textContent = 'PLACING ORDER...'; btn.disabled = true;
-    const name = document.getElementById('chkName').value;
+    const name = document.getElementById('chkName').value.trim();
+    const phone = document.getElementById('chkPhone').value.trim();
+    const address = document.getElementById('chkAddress').value.trim();
+    if (!name || !phone || !address) { alert('Please fill in Name, Phone, and Address.'); btn.textContent = 'PLACE ORDER'; btn.disabled = false; return; }
     const loggedUser = JSON.parse(localStorage.getItem('user'));
-    const email = loggedUser ? loggedUser.email : document.getElementById('chkEmail').value;
-    const phone = document.getElementById('chkPhone').value;
-    const address = document.getElementById('chkAddress').value;
+    const emailEl = document.getElementById('chkEmail');
+    const email = loggedUser ? loggedUser.email : (emailEl ? emailEl.value.trim() : '');
     const itemsToProcess = directBuyItem ? [directBuyItem] : cartItems;
     const subtotal = itemsToProcess.reduce((sum, item) => sum + ((item.sale_price || item.price) * item.quantity), 0);
+    const shipping = subtotal >= 2000 ? 0 : 250;
     const discount = appliedCoupon ? appliedCoupon.discount_amount : 0;
     const orderPayload = {
-        name, email, phone, address, subtotal, shipping: 250, discount, total: subtotal + 250 - discount,
+        name, email, phone, address, subtotal, shipping, discount, total: subtotal + shipping - discount,
         coupon_code: appliedCoupon ? appliedCoupon.code : null,
         items: itemsToProcess.map(item => ({ product_id: item.id, product_name: item.name, size: item.cartSize, color: item.color, price: item.sale_price || item.price, quantity: item.quantity, image: item.images[0] }))
     };
@@ -1505,6 +1581,13 @@ async function loadAdminCustomers() {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 window.onload = () => {
+    try {
+        const savedCart = JSON.parse(localStorage.getItem('rift_cart') || '[]');
+        cartItems = Array.isArray(savedCart) ? savedCart.filter(item => item && item.id && item.quantity > 0) : [];
+    } catch {
+        cartItems = [];
+        localStorage.removeItem('rift_cart');
+    }
     updateCartUI();
     syncUserUI();
     updateWishBadge();
