@@ -385,6 +385,19 @@ app.get('/api/admin/customers', authenticateToken, requireAdmin, async (req, res
 // ─── Wildcard → SPA ────────────────────────────────────────────────────────────────
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
 
-initDB()
-    .then(() => app.listen(PORT, () => console.log(`Rift Thrift active on port ${PORT}`)))
-    .catch(err => { console.error('Startup failed:', err.message); process.exit(1); });
+// ─── Export for Vercel serverless ─────────────────────────────────────────────
+module.exports = app;
+
+// ─── Start server when running directly (not on Vercel) ───────────────────────
+if (require.main === module) {
+    initDB()
+        .then(() => app.listen(PORT, () => {
+            console.log(`Admin ready: ${process.env.ADMIN_EMAIL || 'moiz3996317@gmail.com'}`);
+            console.log('Rift Thrift DB ready.');
+            console.log(`Rift Thrift active on port ${PORT}`);
+        }))
+        .catch(err => { console.error('Startup failed:', err.message); process.exit(1); });
+} else {
+    // Vercel: initialise DB eagerly on cold start (non-blocking)
+    initDB().catch(err => console.error('DB init error:', err.message));
+}

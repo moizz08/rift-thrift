@@ -61,7 +61,7 @@
                 <p id="sidebarUserName" class="text-xs font-bold tracking-widest text-black truncate"></p>
                 <p id="sidebarUserEmail" class="text-[11px] text-gray-400 truncate"></p>
             </div>
-            <button onclick="toggleAuth(); toggleMenu();" id="sidebarAuthBtn" class="w-full bg-black text-white py-3 text-xs font-bold tracking-widest hover:bg-gray-800 transition cursor-pointer">SIGN IN / CREATE ACCOUNT</button>
+            <button onclick="openAuthModal('login'); toggleMenu();" id="sidebarAuthBtn" class="w-full bg-black text-white py-3 text-xs font-bold tracking-widest hover:bg-gray-800 transition cursor-pointer active:scale-95">SIGN IN / CREATE ACCOUNT</button>
         </div>
     </div>
 </div>
@@ -353,7 +353,7 @@
                 </div>
             </div>
             <input type="text" id="chkName" placeholder="FULL NAME" required class="w-full border-b p-3 text-sm outline-none focus:border-black transition-colors cursor-text bg-transparent">
-            <input type="email" id="chkEmail" placeholder="EMAIL ADDRESS" required class="w-full border-b p-3 text-sm outline-none focus:border-black transition-colors cursor-text bg-transparent">
+            <input type="email" id="chkEmail" placeholder="EMAIL ADDRESS (optional — for order updates)" class="w-full border-b p-3 text-sm outline-none focus:border-black transition-colors cursor-text bg-transparent">
             <input type="tel" id="chkPhone" placeholder="PHONE NUMBER" required class="w-full border-b p-3 text-sm outline-none focus:border-black transition-colors cursor-text bg-transparent">
             <textarea id="chkAddress" placeholder="COMPLETE DELIVERY ADDRESS" required class="w-full border-b p-3 text-sm outline-none focus:border-black resize-none cursor-text bg-transparent transition-colors" rows="3"></textarea>
             <div class="pt-2">
