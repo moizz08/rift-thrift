@@ -138,19 +138,19 @@ function render() {
                     ontouchstart="cardTouchStart(event, ${p.id})"
                     ontouchend="cardTouchEnd(event, ${p.id})">
                     ${badges ? `<div class="product-badges">${badges}</div>` : ''}
-                    <button onclick="event.stopPropagation(); toggleWishlist(${p.id}, event)" class="wish-btn absolute top-2 right-2 z-20 w-8 h-8 flex items-center justify-center bg-white/80 rounded-full shadow hover:scale-110 transition ${isWished ? 'active text-red-500' : 'text-gray-400'}">
-                        <i class="fa-${isWished ? 'solid' : 'regular'} fa-heart text-sm"></i>
-                    </button>
                     <div class="absolute inset-0 skeleton-loader z-0"></div>
                     <img id="card-img-${p.id}" src="${p.images[0] || ''}" class="absolute inset-0 w-full h-full object-cover transition-all duration-700 group-hover:scale-110 opacity-0 z-10 relative" onload="this.classList.remove('opacity-0'); this.previousElementSibling.style.display='none';" onerror="this.style.display='none'">
-                    <div class="absolute inset-0 bg-black/0 transition-colors duration-500 z-10 pointer-events-none"></div>
+                    <div class="absolute inset-0 bg-black/0 md:group-hover:bg-black/20 transition-colors duration-500 z-10 pointer-events-none"></div>
                     <div id="card-dots-${p.id}" class="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-20 opacity-0 transition-opacity duration-300">
                         ${p.images.map((_, i) => `<div class="card-dot-${p.id} w-1.5 h-1.5 rounded-full ${i === 0 ? 'bg-white' : 'bg-white/50'} transition-all"></div>`).join('')}
                     </div>
-                    <div class="absolute inset-0 hidden md:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-400 z-20">
-                        <button onclick="event.stopPropagation(); showDetail(${p.id})" class="bg-white text-black px-3 py-2 font-bold tracking-widest text-[10px] hover:bg-black hover:text-white active:scale-90 transition shadow-lg rounded-sm">VIEW</button>
-                        <button onclick="event.stopPropagation(); showQuickAdd(${p.id}, event);" class="bg-white text-black px-3 py-2 font-bold tracking-widest text-[10px] hover:bg-black hover:text-white active:scale-90 transition shadow-lg rounded-sm"><i class="fa-solid fa-cart-plus"></i></button>
+                    <div class="absolute inset-0 hidden md:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-400 z-20 pointer-events-none group-hover:pointer-events-auto">
+                        <button onclick="event.stopPropagation(); showDetail(${p.id})" class="bg-white text-black px-3 py-2 font-bold tracking-widest text-[10px] hover:bg-black hover:text-white active:scale-90 transition shadow-lg rounded-sm pointer-events-auto">VIEW</button>
+                        <button onclick="event.stopPropagation(); showQuickAdd(${p.id}, event);" class="bg-white text-black px-3 py-2 font-bold tracking-widest text-[10px] hover:bg-black hover:text-white active:scale-90 transition shadow-lg rounded-sm pointer-events-auto"><i class="fa-solid fa-cart-plus"></i></button>
                     </div>
+                    <button onclick="event.stopPropagation(); toggleWishlist(${p.id}, event)" class="wish-btn absolute top-2 right-2 z-30 w-8 h-8 flex items-center justify-center bg-white/80 rounded-full shadow hover:scale-110 transition ${isWished ? 'active text-red-500' : 'text-gray-400'}">
+                        <i class="fa-${isWished ? 'solid' : 'regular'} fa-heart text-sm"></i>
+                    </button>
                 </div>
                 <div class="text-center px-1 cursor-pointer flex-1 flex flex-col justify-between" onclick="showDetail(${p.id})">
                     <div>
@@ -705,12 +705,12 @@ function flyToCart(event, imgUrl) {
         flyEl.style.cssText = `position:fixed;width:44px;height:56px;object-fit:cover;border-radius:6px;border:2px solid #fff;
             left:${startX}px;top:${startY}px;transform:translate(-50%,-50%) scale(1);
             z-index:99999;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,0.4);
-            transition:left 0.58s cubic-bezier(0.25,0.8,0.4,1),top 0.58s cubic-bezier(0.25,0.8,0.4,1),transform 0.58s ease,opacity 0.58s ease;`;
+            transition:left 0.82s cubic-bezier(0.25,0.8,0.4,1),top 0.82s cubic-bezier(0.25,0.8,0.4,1),transform 0.82s ease,opacity 0.82s ease;`;
     } else {
         flyEl.style.cssText = `position:fixed;width:14px;height:14px;background:#000;border-radius:50%;
             left:${startX}px;top:${startY}px;transform:translate(-50%,-50%) scale(1);
             z-index:99999;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.4);
-            transition:left 0.52s cubic-bezier(0.25,0.8,0.4,1),top 0.52s cubic-bezier(0.25,0.8,0.4,1),transform 0.52s ease,opacity 0.52s ease;`;
+            transition:left 0.75s cubic-bezier(0.25,0.8,0.4,1),top 0.75s cubic-bezier(0.25,0.8,0.4,1),transform 0.75s ease,opacity 0.75s ease;`;
     }
     document.body.appendChild(flyEl);
     void flyEl.offsetWidth;
@@ -718,7 +718,7 @@ function flyToCart(event, imgUrl) {
     flyEl.style.top = `${cartRect.top + cartRect.height / 2}px`;
     flyEl.style.transform = 'translate(-50%,-50%) scale(0.1)';
     flyEl.style.opacity = '0';
-    const dur = imgUrl ? 580 : 520;
+    const dur = imgUrl ? 820 : 750;
     setTimeout(() => {
         flyEl.remove();
         cartIcons.forEach(btn => {
@@ -751,12 +751,12 @@ function flyToWishlist(event, imgUrl) {
         flyEl.style.cssText = `position:fixed;width:38px;height:48px;object-fit:cover;border-radius:6px;border:2px solid #fff;
             left:${startX}px;top:${startY}px;transform:translate(-50%,-50%) scale(1);
             z-index:99999;pointer-events:none;box-shadow:0 4px 16px rgba(239,68,68,0.4);
-            transition:left 0.58s cubic-bezier(0.25,0.8,0.4,1),top 0.58s cubic-bezier(0.25,0.8,0.4,1),transform 0.58s ease,opacity 0.58s ease;`;
+            transition:left 0.82s cubic-bezier(0.25,0.8,0.4,1),top 0.82s cubic-bezier(0.25,0.8,0.4,1),transform 0.82s ease,opacity 0.82s ease;`;
     } else {
         flyEl.style.cssText = `position:fixed;width:12px;height:12px;background:#ef4444;border-radius:50%;
             left:${startX}px;top:${startY}px;transform:translate(-50%,-50%) scale(1);
             z-index:99999;pointer-events:none;
-            transition:left 0.52s cubic-bezier(0.25,0.8,0.4,1),top 0.52s cubic-bezier(0.25,0.8,0.4,1),transform 0.52s ease,opacity 0.52s ease;`;
+            transition:left 0.75s cubic-bezier(0.25,0.8,0.4,1),top 0.75s cubic-bezier(0.25,0.8,0.4,1),transform 0.75s ease,opacity 0.75s ease;`;
     }
     document.body.appendChild(flyEl);
     void flyEl.offsetWidth;
@@ -768,7 +768,7 @@ function flyToWishlist(event, imgUrl) {
         flyEl.remove();
         wishBtn.classList.remove('wish-nav-bounce'); void wishBtn.offsetWidth; wishBtn.classList.add('wish-nav-bounce');
         setTimeout(() => wishBtn.classList.remove('wish-nav-bounce'), 600);
-    }, 580);
+    }, 820);
 }
 
 // ─── Sound Effects ─────────────────────────────────────────────────────────────
