@@ -391,7 +391,7 @@ module.exports = app;
 // ─── Start server when running directly (not on Vercel) ───────────────────────
 if (require.main === module) {
     initDB()
-        .then(() => app.listen(PORT, () => {
+        .then(() => app.listen(PORT, '0.0.0.0', () => {
             console.log(`Admin ready: ${process.env.ADMIN_EMAIL || 'moiz3996317@gmail.com'}`);
             console.log('Rift Thrift DB ready.');
             console.log(`Rift Thrift active on port ${PORT}`);
