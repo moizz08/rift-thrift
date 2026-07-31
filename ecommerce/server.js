@@ -14,6 +14,13 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname)));
 
+// ─── Vercel: wait for DB init before handling any request ─────────────────────
+let _dbReady = null;
+app.use(async (req, res, next) => {
+    if (_dbReady) await _dbReady;
+    next();
+});
+
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
@@ -400,6 +407,6 @@ if (require.main === module) {
         }))
         .catch(err => { console.error('Startup failed:', err.message); process.exit(1); });
 } else {
-    // Vercel: initialise DB eagerly on cold start (non-blocking)
-    initDB().catch(err => console.error('DB init error:', err.message));
+    // Vercel: initialise DB on cold start — requests wait until ready
+    _dbReady = initDB().catch(err => console.error('DB init error:', err.message));
 }
