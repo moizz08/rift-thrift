@@ -18,6 +18,9 @@ let appliedCoupon = null;
 let currentCheckoutSubtotal = 0;
 let directBuyItem = null;
 let toastTimeout;
+let quickAddProductId = null;
+let quickAddSelectedSize = null;
+let quickAddEvent = null;
 let savedHomeScroll = 0;
 let activeProductImages = [];
 let currentLightboxIndex = 0;
@@ -135,7 +138,7 @@ function render() {
                     ontouchstart="cardTouchStart(event, ${p.id})"
                     ontouchend="cardTouchEnd(event, ${p.id})">
                     ${badges ? `<div class="product-badges">${badges}</div>` : ''}
-                    <button onclick="event.stopPropagation(); toggleWishlist(${p.id})" class="wish-btn absolute top-2 right-2 z-20 w-8 h-8 flex items-center justify-center bg-white/80 rounded-full shadow hover:scale-110 transition ${isWished ? 'active text-red-500' : 'text-gray-400'}">
+                    <button onclick="event.stopPropagation(); toggleWishlist(${p.id}, event)" class="wish-btn absolute top-2 right-2 z-20 w-8 h-8 flex items-center justify-center bg-white/80 rounded-full shadow hover:scale-110 transition ${isWished ? 'active text-red-500' : 'text-gray-400'}">
                         <i class="fa-${isWished ? 'solid' : 'regular'} fa-heart text-sm"></i>
                     </button>
                     <div class="absolute inset-0 skeleton-loader z-0"></div>
@@ -146,7 +149,7 @@ function render() {
                     </div>
                     <div class="absolute inset-0 hidden md:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-400 z-20">
                         <button onclick="event.stopPropagation(); showDetail(${p.id})" class="bg-white text-black px-3 py-2 font-bold tracking-widest text-[10px] hover:bg-black hover:text-white active:scale-90 transition shadow-lg rounded-sm">VIEW</button>
-                        <button onclick="event.stopPropagation(); addCart(${p.id}, event);" class="bg-white text-black px-3 py-2 font-bold tracking-widest text-[10px] hover:bg-black hover:text-white active:scale-90 transition shadow-lg rounded-sm"><i class="fa-solid fa-cart-plus"></i></button>
+                        <button onclick="event.stopPropagation(); showQuickAdd(${p.id}, event);" class="bg-white text-black px-3 py-2 font-bold tracking-widest text-[10px] hover:bg-black hover:text-white active:scale-90 transition shadow-lg rounded-sm"><i class="fa-solid fa-cart-plus"></i></button>
                     </div>
                 </div>
                 <div class="text-center px-1 cursor-pointer flex-1 flex flex-col justify-between" onclick="showDetail(${p.id})">
@@ -155,7 +158,7 @@ function render() {
                         <h3 class="text-[12px] md:text-sm font-bold uppercase mb-1 truncate leading-tight">${p.name}</h3>
                         <div class="mb-1">${displayPrice}</div>
                     </div>
-                    <button onclick="event.stopPropagation(); addCart(${p.id}, event);" class="md:hidden w-full bg-black text-white text-[10px] py-2.5 mt-2 font-bold tracking-[0.2em] uppercase hover:bg-gray-800 active:scale-95 transition-all shadow-sm rounded-sm cursor-pointer flex items-center justify-center gap-1.5">
+                    <button onclick="event.stopPropagation(); showQuickAdd(${p.id}, event);" class="md:hidden w-full bg-black text-white text-[10px] py-2.5 mt-2 font-bold tracking-[0.2em] uppercase hover:bg-gray-800 active:scale-95 transition-all shadow-sm rounded-sm cursor-pointer flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-bag-shopping text-[9px]"></i> ADD TO CART
                     </button>
                 </div>
@@ -369,6 +372,30 @@ function toggleMobileSearch() {
     } else {
         ms.classList.add('hidden'); ms.classList.remove('flex');
         if (document.getElementById('mobileSearchInput').value) clearSearch('mobile');
+    }
+}
+
+// ─── Sidebar Auth ─────────────────────────────────────────────────────────────
+function openAuthFromSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.add('-translate-x-full');
+    const user = JSON.parse(localStorage.getItem('user'));
+    // Replace menu layer with auth layer (or user dropdown) in place
+    if (appLayers.length > 0 && appLayers[appLayers.length - 1].id === 'menu') {
+        if (user) {
+            appLayers.pop();
+            history.replaceState({}, '', location.pathname);
+            setTimeout(() => toggleUserDropdown(), 50);
+            return;
+        }
+        const auth = document.getElementById('authModal');
+        auth.classList.remove('hidden-section');
+        switchAuth('login');
+        appLayers[appLayers.length - 1] = { id: 'auth', closeFunc: () => auth.classList.add('hidden-section') };
+        history.replaceState({ layerId: 'auth' }, '', '#auth');
+    } else {
+        if (user) { toggleUserDropdown(); return; }
+        openAuthModal('login');
     }
 }
 
@@ -639,21 +666,22 @@ function updateCartUI() {
     }
 }
 
-function addCart(id, event) {
+function addCart(id, event, sizeOverride) {
     const p = products.find(x => x.id === id);
     if (!p) return;
-    const existing = cartItems.findIndex(item => item.id === id && item.cartSize === selectedSize);
+    const cartSize = sizeOverride || selectedSize;
+    const existing = cartItems.findIndex(item => item.id === id && item.cartSize === cartSize);
     if (existing > -1) { cartItems[existing].quantity += 1; }
-    else { cartItems.push({ ...p, cartSize: selectedSize, quantity: 1 }); }
+    else { cartItems.push({ ...p, cartSize, quantity: 1 }); }
     updateCartUI();
-    flyToCart(event);
+    flyToCart(event, p.images[0]);
+    playCartSound();
     showToast('Added to Cart', 'fa-bag-shopping');
 }
 
-function flyToCart(event) {
+function flyToCart(event, imgUrl) {
     const cartIcons = document.querySelectorAll('.cart-icon-btn');
     if (!cartIcons.length) return;
-    // pick the visible cart icon
     let cartEl = null;
     cartIcons.forEach(el => { if (el.offsetParent !== null) cartEl = el; });
     if (!cartEl) cartEl = cartIcons[0];
@@ -662,29 +690,176 @@ function flyToCart(event) {
     let startX = window.innerWidth / 2;
     let startY = window.innerHeight / 3;
     if (event) {
-        if (event.clientX) { startX = event.clientX; startY = event.clientY; }
-        else if (event.touches && event.touches[0]) { startX = event.touches[0].clientX; startY = event.touches[0].clientY; }
-        else if (event.changedTouches && event.changedTouches[0]) { startX = event.changedTouches[0].clientX; startY = event.changedTouches[0].clientY; }
+        const t = event.changedTouches?.[0] || event.touches?.[0];
+        if (t) { startX = t.clientX; startY = t.clientY; }
+        else if (event.clientX !== undefined) { startX = event.clientX; startY = event.clientY; }
+        else { // fallback: use the element's position
+            const rect = (event.target || event.currentTarget)?.getBoundingClientRect?.();
+            if (rect) { startX = rect.left + rect.width / 2; startY = rect.top + rect.height / 2; }
+        }
     }
 
-    const dot = document.createElement('div');
-    dot.style.cssText = `position:fixed;width:14px;height:14px;background:#000;border-radius:50%;
-        left:${startX}px;top:${startY}px;transform:translate(-50%,-50%) scale(1);
-        z-index:99999;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.4);
-        transition:left 0.52s cubic-bezier(0.25,0.8,0.4,1),top 0.52s cubic-bezier(0.25,0.8,0.4,1),transform 0.52s ease,opacity 0.52s ease;`;
-    document.body.appendChild(dot);
-    void dot.offsetWidth;
-    dot.style.left = `${cartRect.left + cartRect.width / 2}px`;
-    dot.style.top = `${cartRect.top + cartRect.height / 2}px`;
-    dot.style.transform = 'translate(-50%,-50%) scale(0.2)';
-    dot.style.opacity = '0';
+    const flyEl = imgUrl ? document.createElement('img') : document.createElement('div');
+    if (imgUrl) {
+        flyEl.src = imgUrl;
+        flyEl.style.cssText = `position:fixed;width:44px;height:56px;object-fit:cover;border-radius:6px;border:2px solid #fff;
+            left:${startX}px;top:${startY}px;transform:translate(-50%,-50%) scale(1);
+            z-index:99999;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,0.4);
+            transition:left 0.58s cubic-bezier(0.25,0.8,0.4,1),top 0.58s cubic-bezier(0.25,0.8,0.4,1),transform 0.58s ease,opacity 0.58s ease;`;
+    } else {
+        flyEl.style.cssText = `position:fixed;width:14px;height:14px;background:#000;border-radius:50%;
+            left:${startX}px;top:${startY}px;transform:translate(-50%,-50%) scale(1);
+            z-index:99999;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.4);
+            transition:left 0.52s cubic-bezier(0.25,0.8,0.4,1),top 0.52s cubic-bezier(0.25,0.8,0.4,1),transform 0.52s ease,opacity 0.52s ease;`;
+    }
+    document.body.appendChild(flyEl);
+    void flyEl.offsetWidth;
+    flyEl.style.left = `${cartRect.left + cartRect.width / 2}px`;
+    flyEl.style.top = `${cartRect.top + cartRect.height / 2}px`;
+    flyEl.style.transform = 'translate(-50%,-50%) scale(0.1)';
+    flyEl.style.opacity = '0';
+    const dur = imgUrl ? 580 : 520;
     setTimeout(() => {
-        dot.remove();
+        flyEl.remove();
         cartIcons.forEach(btn => {
             btn.classList.remove('cart-shake'); void btn.offsetWidth; btn.classList.add('cart-shake');
             setTimeout(() => btn.classList.remove('cart-shake'), 700);
         });
-    }, 520);
+    }, dur);
+}
+
+function flyToWishlist(event, imgUrl) {
+    const wishBtn = document.getElementById('wishNavBtn');
+    if (!wishBtn) return;
+    const wishRect = wishBtn.getBoundingClientRect();
+
+    let startX = window.innerWidth / 2;
+    let startY = window.innerHeight / 3;
+    if (event) {
+        const t = event.changedTouches?.[0] || event.touches?.[0];
+        if (t) { startX = t.clientX; startY = t.clientY; }
+        else if (event.clientX !== undefined) { startX = event.clientX; startY = event.clientY; }
+        else {
+            const rect = (event.target || event.currentTarget)?.getBoundingClientRect?.();
+            if (rect) { startX = rect.left + rect.width / 2; startY = rect.top + rect.height / 2; }
+        }
+    }
+
+    const flyEl = imgUrl ? document.createElement('img') : document.createElement('div');
+    if (imgUrl) {
+        flyEl.src = imgUrl;
+        flyEl.style.cssText = `position:fixed;width:38px;height:48px;object-fit:cover;border-radius:6px;border:2px solid #fff;
+            left:${startX}px;top:${startY}px;transform:translate(-50%,-50%) scale(1);
+            z-index:99999;pointer-events:none;box-shadow:0 4px 16px rgba(239,68,68,0.4);
+            transition:left 0.58s cubic-bezier(0.25,0.8,0.4,1),top 0.58s cubic-bezier(0.25,0.8,0.4,1),transform 0.58s ease,opacity 0.58s ease;`;
+    } else {
+        flyEl.style.cssText = `position:fixed;width:12px;height:12px;background:#ef4444;border-radius:50%;
+            left:${startX}px;top:${startY}px;transform:translate(-50%,-50%) scale(1);
+            z-index:99999;pointer-events:none;
+            transition:left 0.52s cubic-bezier(0.25,0.8,0.4,1),top 0.52s cubic-bezier(0.25,0.8,0.4,1),transform 0.52s ease,opacity 0.52s ease;`;
+    }
+    document.body.appendChild(flyEl);
+    void flyEl.offsetWidth;
+    flyEl.style.left = `${wishRect.left + wishRect.width / 2}px`;
+    flyEl.style.top = `${wishRect.top + wishRect.height / 2}px`;
+    flyEl.style.transform = 'translate(-50%,-50%) scale(0.1)';
+    flyEl.style.opacity = '0';
+    setTimeout(() => {
+        flyEl.remove();
+        wishBtn.classList.remove('wish-nav-bounce'); void wishBtn.offsetWidth; wishBtn.classList.add('wish-nav-bounce');
+        setTimeout(() => wishBtn.classList.remove('wish-nav-bounce'), 600);
+    }, 580);
+}
+
+// ─── Sound Effects ─────────────────────────────────────────────────────────────
+function playCartSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [[800, 0], [1050, 0.13]].forEach(([freq, delay]) => {
+            const o = ctx.createOscillator(), g = ctx.createGain();
+            o.type = 'sine'; o.frequency.value = freq;
+            o.connect(g); g.connect(ctx.destination);
+            g.gain.setValueAtTime(0.22, ctx.currentTime + delay);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.22);
+            o.start(ctx.currentTime + delay); o.stop(ctx.currentTime + delay + 0.22);
+        });
+    } catch(e) {}
+}
+
+function playWishlistSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [[620, 0], [930, 0.16]].forEach(([freq, delay]) => {
+            const o = ctx.createOscillator(), g = ctx.createGain();
+            o.type = 'sine'; o.frequency.value = freq;
+            o.connect(g); g.connect(ctx.destination);
+            g.gain.setValueAtTime(0.18, ctx.currentTime + delay);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.28);
+            o.start(ctx.currentTime + delay); o.stop(ctx.currentTime + delay + 0.28);
+        });
+    } catch(e) {}
+}
+
+// ─── Quick Add Popup ───────────────────────────────────────────────────────────
+function showQuickAdd(id, event) {
+    const p = products.find(x => x.id === id);
+    if (!p) return;
+    quickAddProductId = id;
+    quickAddSelectedSize = null;
+    quickAddEvent = event;
+
+    document.getElementById('qaName').textContent = p.name;
+    document.getElementById('qaImg').src = p.images[0] || '';
+    document.getElementById('qaCategory').textContent = (p.sale_type || (p.gender + ' / ' + p.category)).toUpperCase();
+    document.getElementById('qaColorDot').style.background = p.color_hex || '#000';
+    document.getElementById('qaColorName').textContent = p.color;
+
+    const priceEl = document.getElementById('qaPrice');
+    priceEl.innerHTML = p.sale_price
+        ? `<span class="line-through text-gray-400 text-base mr-1.5 font-normal">Rs. ${p.price}</span><span class="text-red-500">Rs. ${p.sale_price}</span>`
+        : `Rs. ${p.price}`;
+
+    const unavail = Array.isArray(p.unavailable_sizes) ? p.unavailable_sizes : [];
+    const sizes = Array.isArray(p.sizes) ? p.sizes : ['S', 'M', 'L', 'XL'];
+    document.getElementById('qaSizes').innerHTML = sizes.map(s => {
+        const isUn = unavail.includes(s);
+        return `<button onclick="selectQASize('${s}')" id="qa-size-${s}"
+            class="qa-size-btn px-4 py-2.5 text-[11px] font-bold uppercase rounded-sm cursor-pointer"
+            ${isUn ? 'disabled' : ''}>${s}</button>`;
+    }).join('');
+
+    const firstAvail = sizes.find(s => !unavail.includes(s));
+    if (firstAvail) selectQASize(firstAvail);
+
+    const overlay = document.getElementById('quickAddOverlay');
+    const modal = document.getElementById('quickAddModal');
+    overlay.classList.remove('hidden');
+    modal.classList.remove('hidden');
+    void modal.offsetWidth;
+    overlay.classList.add('open');
+    modal.classList.add('open');
+    pushAppLayer('quickAdd', () => {
+        overlay.classList.remove('open'); modal.classList.remove('open');
+        setTimeout(() => { overlay.classList.add('hidden'); modal.classList.add('hidden'); }, 360);
+        quickAddProductId = null; quickAddSelectedSize = null;
+    });
+}
+
+function selectQASize(size) {
+    quickAddSelectedSize = size;
+    document.querySelectorAll('.qa-size-btn').forEach(btn => btn.classList.remove('qa-selected'));
+    const btn = document.getElementById(`qa-size-${size}`);
+    if (btn && !btn.disabled) btn.classList.add('qa-selected');
+}
+
+function closeQuickAdd() { if (quickAddProductId !== null) goBack(); }
+
+function confirmQuickAdd(e) {
+    if (!quickAddProductId) return;
+    if (!quickAddSelectedSize) { showToast('Please select a size', 'fa-triangle-exclamation'); return; }
+    const id = quickAddProductId, size = quickAddSelectedSize;
+    addCart(id, e, size);
+    closeQuickAdd();
 }
 
 function updateQuantity(index, change) {
@@ -694,11 +869,19 @@ function updateQuantity(index, change) {
 }
 
 // ─── Wishlist ──────────────────────────────────────────────────────────────────
-function toggleWishlist(id) {
+function toggleWishlist(id, evt) {
     const idx = wishlist.indexOf(id);
     const adding = idx === -1;
-    if (adding) { wishlist.push(id); showToast('Added to Wishlist ♥', 'fa-heart'); }
-    else { wishlist.splice(idx, 1); showToast('Removed from Wishlist', 'fa-heart-crack', 'red'); }
+    if (adding) {
+        wishlist.push(id);
+        showToast('Added to Wishlist ♥', 'fa-heart');
+        const p = products.find(x => x.id === id);
+        if (p) flyToWishlist(evt, p.images[0]);
+        playWishlistSound();
+    } else {
+        wishlist.splice(idx, 1);
+        showToast('Removed from Wishlist', 'fa-heart-crack', 'red');
+    }
     localStorage.setItem('rift_wishlist', JSON.stringify(wishlist));
     updateWishBadge();
     // Update every heart button for this product + animate

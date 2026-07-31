@@ -61,7 +61,7 @@
                 <p id="sidebarUserName" class="text-xs font-bold tracking-widest text-black truncate"></p>
                 <p id="sidebarUserEmail" class="text-[11px] text-gray-400 truncate"></p>
             </div>
-            <button onclick="openAuthModal('login'); toggleMenu();" id="sidebarAuthBtn" class="w-full bg-black text-white py-3 text-xs font-bold tracking-widest hover:bg-gray-800 transition cursor-pointer active:scale-95">SIGN IN / CREATE ACCOUNT</button>
+            <button onclick="openAuthFromSidebar();" id="sidebarAuthBtn" class="w-full bg-black text-white py-3 text-xs font-bold tracking-widest hover:bg-gray-800 transition cursor-pointer active:scale-95">SIGN IN / CREATE ACCOUNT</button>
         </div>
     </div>
 </div>
@@ -84,7 +84,7 @@
             <img src="https://i.ibb.co/KzhP9FgW/Screenshot-20260501-002546-4.jpg" alt="Rift Thrift" class="h-8 md:h-11 object-contain">
         </div>
         <div class="flex items-center justify-end gap-4 flex-1">
-            <button onclick="showWishlistPage()" class="relative p-1 text-xl hover:text-gray-500 transition cursor-pointer">
+            <button id="wishNavBtn" onclick="showWishlistPage()" class="relative p-1 text-xl hover:text-gray-500 transition cursor-pointer">
                 <i class="fa-regular fa-heart"></i>
                 <span id="wishBadge" class="hidden absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">0</span>
             </button>
@@ -193,6 +193,39 @@
 </div>
 <div id="cartOverlay" class="fixed inset-0 bg-black/50 z-[75] hidden cursor-pointer" onclick="toggleCart()"></div>
 
+<!-- Quick Add Popup -->
+<div id="quickAddOverlay" class="hidden fixed inset-0 z-[88]" onclick="closeQuickAdd()"></div>
+<div id="quickAddModal" class="quick-add-modal hidden fixed z-[89] bg-white shadow-2xl">
+    <div class="flex justify-between items-center px-5 pt-5 pb-4 border-b">
+        <div class="flex-1 mr-4 min-w-0">
+            <p id="qaCategory" class="text-[9px] text-gray-400 tracking-widest uppercase mb-0.5"></p>
+            <h3 id="qaName" class="font-bold text-[12px] tracking-widest uppercase truncate"></h3>
+        </div>
+        <button onclick="closeQuickAdd()" class="text-gray-400 hover:text-black cursor-pointer hover:rotate-90 transition-all duration-300 shrink-0"><i class="fa-solid fa-xmark text-xl"></i></button>
+    </div>
+    <div class="p-5">
+        <div class="flex gap-4 mb-5">
+            <div class="w-[68px] h-[84px] bg-gray-100 overflow-hidden rounded-sm shrink-0 border border-gray-200">
+                <img id="qaImg" src="" class="w-full h-full object-cover" onerror="this.style.opacity='0.2'">
+            </div>
+            <div class="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
+                <p id="qaPrice" class="font-bold text-xl"></p>
+                <div class="flex items-center gap-2">
+                    <span id="qaColorDot" class="w-4 h-4 rounded-full inline-block border border-gray-200 shrink-0 shadow-sm"></span>
+                    <span id="qaColorName" class="text-[11px] text-gray-500 font-medium truncate"></span>
+                </div>
+            </div>
+        </div>
+        <div class="mb-5">
+            <p class="text-[9px] font-bold tracking-[0.25em] uppercase text-gray-400 mb-3">SELECT SIZE</p>
+            <div id="qaSizes" class="flex gap-2 flex-wrap"></div>
+        </div>
+        <button onclick="confirmQuickAdd(event)" class="w-full bg-black text-white py-4 font-bold text-[11px] tracking-[0.2em] uppercase hover:bg-gray-800 active:scale-[0.97] transition cursor-pointer rounded-sm flex items-center justify-center gap-2 shadow-md">
+            <i class="fa-solid fa-bag-shopping"></i> ADD TO CART
+        </button>
+    </div>
+</div>
+
 <!-- Auth Modal -->
 <div id="authModal" class="hidden-section fixed inset-0 z-[90] flex justify-center items-center">
     <div class="absolute inset-0 bg-black/60 modal-backdrop cursor-pointer" onclick="closeAuthModal()"></div>
@@ -204,20 +237,20 @@
             <p class="text-[10px] font-bold tracking-widest text-gray-400 uppercase mb-1">Logged In As</p>
             <h2 id="alreadyLoggedName" class="font-bold text-xl tracking-widest mb-0.5"></h2>
             <p id="alreadyLoggedEmail" class="text-xs text-gray-400 mb-6"></p>
-            <button onclick="toggleAuth()" class="w-full bg-black text-white py-4 font-bold text-xs tracking-widest hover:bg-gray-800 transition cursor-pointer shadow mb-3">START SHOPPING</button>
+            <button onclick="closeAuthModal()" class="w-full bg-black text-white py-4 font-bold text-xs tracking-widest hover:bg-gray-800 transition cursor-pointer shadow mb-3">CONTINUE SHOPPING</button>
             <p class="text-xs font-bold text-gray-400 tracking-widest cursor-pointer hover:text-black transition" onclick="logout(); closeAuthModal()">SIGN OUT</p>
         </div>
         <div id="loginSuccessSection" class="hidden text-center py-4">
             <div class="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-4 success-icon"><i class="fa-solid fa-check text-white text-2xl"></i></div>
             <h2 class="font-bold text-xl tracking-widest mb-2">LOGGED IN!</h2>
             <p id="loginSuccessMsg" class="text-xs text-gray-500 tracking-widest mb-6">WELCOME BACK</p>
-            <button onclick="toggleAuth()" class="w-full bg-black text-white py-4 font-bold text-xs tracking-widest hover:bg-gray-800 transition cursor-pointer shadow">START SHOPPING</button>
+            <button onclick="closeAuthModal()" class="w-full bg-black text-white py-4 font-bold text-xs tracking-widest hover:bg-gray-800 transition cursor-pointer shadow">CONTINUE SHOPPING</button>
         </div>
         <div id="signupSuccessSection" class="hidden text-center py-4">
             <div class="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-4 success-icon"><i class="fa-solid fa-check text-white text-2xl"></i></div>
             <h2 class="font-bold text-xl tracking-widest mb-2">ACCOUNT CREATED!</h2>
             <p id="signupSuccessMsg" class="text-xs text-gray-500 tracking-widest mb-6">WELCOME TO RIFT THRIFT</p>
-            <button onclick="toggleAuth()" class="w-full bg-black text-white py-4 font-bold text-xs tracking-widest hover:bg-gray-800 transition cursor-pointer shadow">START SHOPPING</button>
+            <button onclick="closeAuthModal()" class="w-full bg-black text-white py-4 font-bold text-xs tracking-widest hover:bg-gray-800 transition cursor-pointer shadow">CONTINUE SHOPPING</button>
         </div>
         <div id="loginSection">
             <h2 class="font-bold text-center mb-6 tracking-widest text-lg">SIGN IN</h2>
