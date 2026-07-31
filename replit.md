@@ -1,50 +1,44 @@
 # Rift Thrift
 
-A clothing ecommerce store (Karachi, Pakistan) with a vanilla HTML/CSS/JS storefront and an Express + PostgreSQL backend.
-
-## Run & Operate
-
-- **Workflow:** `Rift Thrift` — starts the server on port 8080 (`PORT=8080 node ecommerce/server.js`)
-- The app auto-initializes all DB tables and seeds sample products + admin on first run
-- `sqlite3` has been removed from `ecommerce/package.json` (unused + CVE block); the server uses PostgreSQL via `pg`
-- Required env: `DATABASE_URL` — Replit's built-in PostgreSQL (auto-provisioned, no setup needed)
+A full-stack e-commerce clothing store for Rift Thrift, a Pakistan-based fashion brand selling jeans, shorts, and more.
 
 ## Stack
 
-- Node.js, Express 4, PostgreSQL (`pg`)
-- Auth: JWT (`jsonwebtoken`) + bcrypt
-- Email: Nodemailer (Gmail) — optional; works without it
-- Frontend: vanilla HTML/CSS/JS in `ecommerce/`
+- **Backend**: Node.js + Express.js (`ecommerce/server.js`)
+- **Frontend**: Vanilla JS + HTML/CSS (`ecommerce/index.html`, `ecommerce/app.js`, `ecommerce/style.css`)
+- **Database**: PostgreSQL (Replit managed, via `DATABASE_URL`)
+- **Auth**: JWT tokens (stored in localStorage)
 
-## Where things live
+## Running the app
 
-- `ecommerce/server.js` — Express server, DB init, all API routes
-- `ecommerce/index.html` — storefront UI entry point
-- `ecommerce/app.js` — frontend JS (products, cart, checkout, wishlist, admin)
-- `ecommerce/style.css` — all styles
+The **Rift Thrift** workflow starts the server:
 
-## Architecture decisions
+```
+cd /home/runner/workspace/ecommerce && PORT=8080 node server.js
+```
 
-- DB schema is created via `CREATE TABLE IF NOT EXISTS` on every startup — no migration files needed
-- Products, admin user, and default coupons are seeded automatically on first run
-- `sqlite3` removed (unused; blocked by CVE policy) — only PostgreSQL is used
-- Email notifications are optional: if `EMAIL_USER`/`EMAIL_PASS` are not set, the server runs without email
+On startup, the server automatically:
+- Creates all required tables (`users`, `orders`, `products`, `coupons`)
+- Seeds a default admin account
+- Seeds default coupon codes (WELCOME10, RIFT20, FLAT200)
+- Seeds 16 initial products if the products table is empty
 
-## Product
+## Environment variables
 
-Rift Thrift is a clothing store for Men, Women, and Kids. Features: product browsing with filters, cart, wishlist, coupon codes, Cash on Delivery checkout, user accounts, order tracking, and a full admin panel (products, orders, coupons, stats).
+| Variable | Description | Required |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL connection string | **Yes** — auto-provided by Replit |
+| `JWT_SECRET` | JWT signing secret | No — falls back to a hardcoded default |
+| `EMAIL_USER` | Gmail address for order emails | No |
+| `EMAIL_PASS` | Gmail app password for emails | No |
+| `ADMIN_EMAIL` | Admin notification email | No — defaults to `EMAIL_USER` |
 
-## Admin credentials (seeded)
+## Admin access
 
-- Email: `moiz3996317@gmail.com`
-- Password: `moizmoiz08`
+Default admin credentials seeded on startup:
+- **Email**: `moiz3996317@gmail.com`
+- **Password**: `moizmoiz08`
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-- The `Rift Thrift` workflow runs the server on port 8080 (preview pane). Do not use the old `Start application` workflow.
-- `sqlite3` must NOT be re-added to `ecommerce/package.json` — it is blocked by Replit's security policy (Critical CVE) and is not used by the server.
-- Email (Nodemailer) only activates when both `EMAIL_USER` and `EMAIL_PASS` secrets are set. Add them via Replit Secrets if order confirmation emails are needed.
+- Keep the existing project structure (Express + vanilla JS, single directory)
