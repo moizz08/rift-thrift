@@ -89,10 +89,13 @@ window.addEventListener('scroll', () => {
     else btn.classList.remove('show');
 });
 
-// ─── Products: Load from API ──────────────────────────────────────────────────
-async function loadProducts() {
+// ─── Products: Load from API (with auto-retry for cold starts) ───────────────
+async function loadProducts(attempt = 1) {
     try {
-        const res = await fetch(`${API_URL}/products`);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000); // 12s timeout
+        const res = await fetch(`${API_URL}/products`, { signal: controller.signal });
+        clearTimeout(timeout);
         if (!res.ok) throw new Error('Failed');
         products = await res.json();
         document.getElementById('productSkeleton').style.display = 'none';
@@ -100,7 +103,12 @@ async function loadProducts() {
         filteredData = [...products];
         applyFilters(false);
     } catch (e) {
-        document.getElementById('productSkeleton').innerHTML = '<div class="col-span-2 md:col-span-4 text-center py-16"><i class="fa-solid fa-wifi-slash text-4xl text-gray-300 mb-4"></i><p class="text-gray-500 font-bold tracking-widest uppercase text-xs">Connection error. Please refresh.</p><button onclick="location.reload()" class="mt-4 bg-black text-white px-6 py-2 text-xs font-bold tracking-widest uppercase cursor-pointer hover:bg-gray-800 transition">RETRY</button></div>';
+        if (attempt < 3) {
+            // Auto-retry up to 3 times (helps with Vercel + Neon cold start)
+            setTimeout(() => loadProducts(attempt + 1), 2500);
+        } else {
+            document.getElementById('productSkeleton').innerHTML = '<div class="col-span-2 md:col-span-4 text-center py-16"><i class="fa-solid fa-wifi-slash text-4xl text-gray-300 mb-4"></i><p class="text-gray-500 font-bold tracking-widest uppercase text-xs">Connection error. Please refresh.</p><button onclick="loadProducts()" class="mt-4 bg-black text-white px-6 py-2 text-xs font-bold tracking-widest uppercase cursor-pointer hover:bg-gray-800 transition">RETRY</button></div>';
+        }
     }
 }
 
